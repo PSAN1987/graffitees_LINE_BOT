@@ -8,17 +8,21 @@ from flask import Flask, request, abort
 from linebot.v3 import WebhookHandler
 from linebot.v3.exceptions import InvalidSignatureError
 from linebot.v3.messaging import (
-    ApiClient, Configuration, MessagingApi,
-    ReplyMessageRequest, TextMessage, FlexMessage
+    ApiClient,
+    Configuration,
+    MessagingApi,
+    ReplyMessageRequest,
+    TextMessage,
+    FlexMessage
 )
 from linebot.v3.webhooks import MessageEvent, TextMessageContent
 
-# Flex関連パーツ (Pydanticモデル)
-from linebot.v3.messaging import (
-    BubbleContainer,
-    BoxComponent,
-    TextComponent,
-    ButtonComponent,
+# ★Flex関連パーツは v3.messaging.models からインポートする★
+from linebot.v3.messaging.models import (
+    Bubble,
+    Box,
+    Text,
+    Button,
     PostbackAction
 )
 
@@ -61,12 +65,12 @@ def get_db_connection():
         port=DATABASE_PORT
     )
 
-# ルートエンドポイント (Render Health Check 用)
+# ルートエンドポイント (ヘルスチェック用)
 @app.route("/", methods=["GET"])
 def health_check():
     return "OK", 200
 
-# Webhookエンドポイント (※1つだけ定義)
+# Webhookエンドポイント
 @app.route("/callback", methods=['POST'])
 def callback():
     signature = request.headers.get('X-Line-Signature', '')
@@ -89,13 +93,13 @@ def callback():
 # Flex Message作成用関数
 def create_flex_message():
     """
-    v3 の Pydantic モデルを使用して FlexMessage を組み立てる例
+    LINE Bot SDK v3対応のFlex Messageの例
     """
-    bubble = BubbleContainer(
-        body=BoxComponent(
+    bubble = Bubble(
+        body=Box(
             layout='vertical',
             contents=[
-                TextComponent(
+                Text(
                     text='モードを選択してください',
                     weight='bold',
                     size='lg',
@@ -103,24 +107,24 @@ def create_flex_message():
                 )
             ]
         ),
-        footer=BoxComponent(
+        footer=Box(
             layout='vertical',
             contents=[
-                ButtonComponent(
+                Button(
                     style='primary',
                     action=PostbackAction(
                         label='簡易見積',
                         data='quick_estimate'
                     )
                 ),
-                ButtonComponent(
+                Button(
                     style='primary',
                     action=PostbackAction(
                         label='WEBフォームから注文',
                         data='web_order'
                     )
                 ),
-                ButtonComponent(
+                Button(
                     style='primary',
                     action=PostbackAction(
                         label='注文用紙から注文',
@@ -131,11 +135,12 @@ def create_flex_message():
         )
     )
 
-    # alt_text は Flex Message 非対応デバイス向けの代替テキスト
-    return FlexMessage(
+    # FlexMessageを返す
+    flex_message = FlexMessage(
         alt_text='モードを選択してください',
         contents=bubble
     )
+    return flex_message
 
 # メッセージイベントのハンドラ
 @handler.add(MessageEvent, message=TextMessageContent)
@@ -143,13 +148,13 @@ def handle_message(event):
     user_input = event.message.text.strip()
 
     if user_input == "モード選択":
-        # FlexMessage を返す
+        # FlexMessageを返す
         reply_message = create_flex_message()
     else:
         # 通常のテキストメッセージ
         reply_message = TextMessage(text=f"あなたのメッセージ: {user_input}")
 
-    # v3 では ReplyMessageRequest に v3 のモデルをリストで渡す
+    # v3 では ReplyMessageRequest に v3モデルをリストで渡す
     body = ReplyMessageRequest(
         reply_token=event.reply_token,
         messages=[reply_message]
