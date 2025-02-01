@@ -96,9 +96,6 @@ def callback():
 
 # Flex Message作成用関数 (v3対応)
 def create_flex_message():
-    """
-    LINE Bot SDK v3 対応の Flex Message サンプル
-    """
     bubble = Bubble(
         body=Box(
             layout='vertical',
@@ -139,7 +136,6 @@ def create_flex_message():
         )
     )
 
-    # FlexMessageを返す
     return FlexMessage(
         alt_text='モードを選択してください',
         contents=bubble
