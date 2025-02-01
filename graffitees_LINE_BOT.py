@@ -138,7 +138,8 @@ def create_flex_message():
                 }
             ]
         }
-    }
+    } 
+    logger.info(f"bubble_dict: {json.dumps(bubble_dict, ensure_ascii=False)}");
 
     return FlexMessage(
         alt_text="モードを選択してください",
