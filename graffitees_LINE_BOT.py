@@ -14,6 +14,15 @@ import logging
 import traceback
 import json
 
+from linebot.v3.messaging import (
+    FlexMessage,
+    BubbleContainer,
+    BoxComponent,
+    TextComponent,
+    ButtonComponent,
+    PostbackAction
+)
+
 # 環境変数を読み込む
 load_dotenv()
 
@@ -66,73 +75,83 @@ def callback():
     return 'OK', 200
 
 # Flex Messageテンプレートを作成
-from linebot.models import FlexSendMessage
-
+from linebot.models import FlexSendMessag
 def create_flex_message():
-    flex_content = {
-        "type": "bubble",
-        "body": {
-            "type": "box",
-            "layout": "vertical",
-            "contents": [
-                {
-                    "type": "text",
-                    "text": "モードを選択してください",
-                    "weight": "bold",
-                    "size": "lg",
-                    "wrap": True
-                }
+    # "bubble" コンテナを作る
+    bubble = BubbleContainer(
+        body=BoxComponent(
+            layout='vertical',
+            contents=[
+                TextComponent(
+                    text='モードを選択してください',
+                    weight='bold',
+                    size='lg',
+                    wrap=True
+                )
             ]
-        },
-        "footer": {
-            "type": "box",
-            "layout": "vertical",
-            "contents": [
-                {
-                    "type": "button",
-                    "style": "primary",
-                    "action": {
-                        "type": "postback",
-                        "label": "簡易見積",
-                        "data": "quick_estimate"
-                    }
-                },
-                {
-                    "type": "button",
-                    "style": "primary",
-                    "action": {
-                        "type": "postback",
-                        "label": "WEBフォームから注文",
-                        "data": "web_order"
-                    }
-                },
-                {
-                    "type": "button",
-                    "style": "primary",
-                    "action": {
-                        "type": "postback",
-                        "label": "注文用紙から注文",
-                        "data": "paper_order"
-                    }
-                }
+        ),
+        footer=BoxComponent(
+            layout='vertical',
+            contents=[
+                ButtonComponent(
+                    style='primary',
+                    action=PostbackAction(
+                        label='簡易見積',
+                        data='quick_estimate'
+                    )
+                ),
+                ButtonComponent(
+                    style='primary',
+                    action=PostbackAction(
+                        label='WEBフォームから注文',
+                        data='web_order'
+                    )
+                ),
+                ButtonComponent(
+                    style='primary',
+                    action=PostbackAction(
+                        label='注文用紙から注文',
+                        data='paper_order'
+                    )
+                )
             ]
-        }
-    }
-    # alt_textはFlexMessageが表示できない環境で表示される代替テキストです
-    return FlexSendMessage(alt_text="モードを選択してください", contents=flex_content)
+        )
+    )
+
+    # FlexMessage を生成
+    flex_message = FlexMessage(
+        alt_text='モードを選択してください',
+        contents=bubble
+    )
+    return flex_message
 
 # メッセージイベントの処理
-@handler.add(MessageEvent, message=TextMessageContent)
+@app.route("/callback", methods=['POST'])
+def callback():
+    signature = request.headers['X-Line-Signature']
+    body = request.get_data(as_text=True)
+    handler.handle(body, signature)
+    return 'OK', 200
+
+
+@handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
     user_input = event.message.text.strip()
+
+    # 「モード選択」と入力された場合だけ Flex メッセージを返す例
     if user_input == "モード選択":
         reply_message = create_flex_message()
     else:
+        # 通常のテキストメッセージを返す
         reply_message = TextMessage(text=f"あなたのメッセージ: {user_input}")
-    messaging_api.reply_message(ReplyMessageRequest(reply_token=event.reply_token, messages=[reply_message]))
+
+    # v3 では ReplyMessageRequest に Pydantic モデルのリストを渡す
+    body = ReplyMessageRequest(
+        reply_token=event.reply_token,
+        messages=[reply_message]
+    )
+    messaging_api.reply_message(body)
+
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))  # Render のポートに合わせる
-
-    # Flaskアプリの起動
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=8000, debug=True)
