@@ -165,6 +165,7 @@ def handle_message(event):
         reply_token=event.reply_token,
         messages=[reply_message]
     )
+    logger.info(f"Sending body: {body.json()}")
     messaging_api.reply_message(body)
 
 
