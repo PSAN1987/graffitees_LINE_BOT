@@ -1,4 +1,4 @@
-import os
+ï»¿import os
 import psycopg2
 import requests
 from dotenv import load_dotenv
@@ -14,10 +14,10 @@ import logging
 import traceback
 import json
 
-# ŠÂ‹«•Ï”‚ğ“Ç‚İ‚Ş
+# ç’°å¢ƒå¤‰æ•°ã‚’èª­ã¿è¾¼ã‚€
 load_dotenv()
 
-# ŠÂ‹«İ’è
+# ç’°å¢ƒè¨­å®š
 CHANNEL_ACCESS_TOKEN = os.getenv('CHANNEL_ACCESS_TOKEN')
 CHANNEL_SECRET = os.getenv('CHANNEL_SECRET')
 DATABASE_NAME = os.getenv('DATABASE_NAME')
@@ -26,27 +26,27 @@ DATABASE_PASSWORD = os.getenv('DATABASE_PASSWORD')
 DATABASE_HOST = os.getenv('DATABASE_HOST')
 DATABASE_PORT = os.getenv('DATABASE_PORT')
 
-# FlaskƒAƒvƒŠ‚Ì‰Šú‰»
+# Flaskã‚¢ãƒ—ãƒªã®åˆæœŸåŒ–
 app = Flask(__name__)
 
-# ƒƒOİ’è
+# ãƒ­ã‚°è¨­å®š
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# LINE Bot API İ’è
+# LINE Bot API è¨­å®š
 config = Configuration(access_token=CHANNEL_ACCESS_TOKEN)
 api_client = ApiClient(configuration=config)
 messaging_api = MessagingApi(api_client=api_client)
 handler = WebhookHandler(CHANNEL_SECRET)
 
-# ƒf[ƒ^ƒx[ƒXÚ‘±ŠÖ”
+# ãƒ‡ãƒ¼ã‚¿ãƒ™ãƒ¼ã‚¹æ¥ç¶šé–¢æ•°
 def get_db_connection():
     return psycopg2.connect(
         dbname=DATABASE_NAME, user=DATABASE_USER,
         password=DATABASE_PASSWORD, host=DATABASE_HOST, port=DATABASE_PORT
     )
 
-# Flex Messageƒeƒ“ƒvƒŒ[ƒg‚ğì¬
+# Flex Messageãƒ†ãƒ³ãƒ—ãƒ¬ãƒ¼ãƒˆã‚’ä½œæˆ
 def create_flex_message():
     flex_content = {
         "type": "bubble",
@@ -54,26 +54,26 @@ def create_flex_message():
             "type": "box",
             "layout": "vertical",
             "contents": [
-                {"type": "text", "text": "’•¶•û–@‚ğ‘I‘ğ‚µ‚Ä‚­‚¾‚³‚¢", "weight": "bold", "size": "lg"},
-                {"type": "button", "style": "primary", "action": {"type": "postback", "label": "ŠÈˆÕŒ©Ï", "data": "quick_estimate"}},
-                {"type": "button", "style": "primary", "action": {"type": "postback", "label": "WEBƒtƒH[ƒ€‚©‚ç’•¶", "data": "web_order"}},
-                {"type": "button", "style": "primary", "action": {"type": "postback", "label": "’•¶—p†‚©‚ç’•¶", "data": "paper_order"}}
+                {"type": "text", "text": "æ³¨æ–‡æ–¹æ³•ã‚’é¸æŠã—ã¦ãã ã•ã„", "weight": "bold", "size": "lg"},
+                {"type": "button", "style": "primary", "action": {"type": "postback", "label": "ç°¡æ˜“è¦‹ç©", "data": "quick_estimate"}},
+                {"type": "button", "style": "primary", "action": {"type": "postback", "label": "WEBãƒ•ã‚©ãƒ¼ãƒ ã‹ã‚‰æ³¨æ–‡", "data": "web_order"}},
+                {"type": "button", "style": "primary", "action": {"type": "postback", "label": "æ³¨æ–‡ç”¨ç´™ã‹ã‚‰æ³¨æ–‡", "data": "paper_order"}}
             ]
         }
     }
-    return FlexMessage(alt_text="’•¶•û–@‚ğ‘I‘ğ‚µ‚Ä‚­‚¾‚³‚¢", contents=flex_content)
+    return FlexMessage(alt_text="æ³¨æ–‡æ–¹æ³•ã‚’é¸æŠã—ã¦ãã ã•ã„", contents=flex_content)
 
-# ƒŠƒbƒ`ƒƒjƒ…[‚ğì¬
+# ãƒªãƒƒãƒãƒ¡ãƒ‹ãƒ¥ãƒ¼ã‚’ä½œæˆ
 def create_rich_menu():
     rich_menu = {
         "size": {"width": 2500, "height": 843},
         "selected": True,
         "name": "Order Menu",
-        "chatBarText": "ƒƒjƒ…[‚ğŠJ‚­",
+        "chatBarText": "ãƒ¡ãƒ‹ãƒ¥ãƒ¼ã‚’é–‹ã",
         "areas": [
-            {"bounds": {"x": 0, "y": 0, "width": 833, "height": 843}, "action": {"type": "postback", "data": "quick_estimate", "displayText": "ŠÈˆÕŒ©Ï"}},
-            {"bounds": {"x": 833, "y": 0, "width": 833, "height": 843}, "action": {"type": "postback", "data": "web_order", "displayText": "WEBƒtƒH[ƒ€‚©‚ç’•¶"}},
-            {"bounds": {"x": 1666, "y": 0, "width": 833, "height": 843}, "action": {"type": "postback", "data": "paper_order", "displayText": "’•¶—p†‚©‚ç’•¶"}}
+            {"bounds": {"x": 0, "y": 0, "width": 833, "height": 843}, "action": {"type": "postback", "data": "quick_estimate", "displayText": "ç°¡æ˜“è¦‹ç©"}},
+            {"bounds": {"x": 833, "y": 0, "width": 833, "height": 843}, "action": {"type": "postback", "data": "web_order", "displayText": "WEBãƒ•ã‚©ãƒ¼ãƒ ã‹ã‚‰æ³¨æ–‡"}},
+            {"bounds": {"x": 1666, "y": 0, "width": 833, "height": 843}, "action": {"type": "postback", "data": "paper_order", "displayText": "æ³¨æ–‡ç”¨ç´™ã‹ã‚‰æ³¨æ–‡"}}
         ]
     }
 
@@ -90,20 +90,20 @@ def create_rich_menu():
         return rich_menu_id
     return None
 
-# ƒŠƒbƒ`ƒƒjƒ…[‚ğ“K—p
+# ãƒªãƒƒãƒãƒ¡ãƒ‹ãƒ¥ãƒ¼ã‚’é©ç”¨
 def set_rich_menu_for_users(rich_menu_id):
     headers = {"Authorization": f"Bearer {CHANNEL_ACCESS_TOKEN}"}
     url = f"https://api.line.me/v2/bot/user/all/richmenu/{rich_menu_id}"
     requests.post(url, headers=headers)
 
-# ƒƒbƒZ[ƒWƒCƒxƒ“ƒg‚Ìˆ—
+# ãƒ¡ãƒƒã‚»ãƒ¼ã‚¸ã‚¤ãƒ™ãƒ³ãƒˆã®å‡¦ç†
 @handler.add(MessageEvent, message=TextMessageContent)
 def handle_message(event):
     user_input = event.message.text.strip()
-    reply_message = create_flex_message() if user_input == "’•¶" else TextMessage(text="’•¶‚ğ‚·‚éê‡‚Íu’•¶v‚Æ‘—M‚µ‚Ä‚­‚¾‚³‚¢B")
+    reply_message = create_flex_message() if user_input == "æ³¨æ–‡" else TextMessage(text="æ³¨æ–‡ã‚’ã™ã‚‹å ´åˆã¯ã€Œæ³¨æ–‡ã€ã¨é€ä¿¡ã—ã¦ãã ã•ã„ã€‚")
     messaging_api.reply_message(ReplyMessageRequest(reply_token=event.reply_token, messages=[reply_message]))
 
-# LINE‚ÌWebhookƒŠƒNƒGƒXƒg‚ğˆ—
+# LINEã®Webhookãƒªã‚¯ã‚¨ã‚¹ãƒˆã‚’å‡¦ç†
 @app.route("/callback", methods=['POST'])
 def callback():
     signature = request.headers['X-Line-Signature']
