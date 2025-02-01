@@ -75,16 +75,14 @@ def create_flex_message():
             "contents": [
                 {"type": "text", "text": "モードを選択してください", "weight": "bold", "size": "lg"},
                 {
-                    "type": "button", "style": "primary", 
-                    "action": {"type": "postback", "label": "簡易見積", "data": "quick_estimate"}
-                },
-                {
-                    "type": "button", "style": "primary", 
-                    "action": {"type": "postback", "label": "WEBフォームから注文", "data": "web_order"}
-                },
-                {
-                    "type": "button", "style": "primary", 
-                    "action": {"type": "postback", "label": "注文用紙から注文", "data": "paper_order"}
+                    "type": "box",
+                    "layout": "vertical",
+                    "margin": "md",
+                    "contents": [
+                        {"type": "button", "style": "primary", "action": {"type": "postback", "label": "簡易見積", "data": "quick_estimate"}},
+                        {"type": "button", "style": "primary", "action": {"type": "postback", "label": "WEBフォームから注文", "data": "web_order"}},
+                        {"type": "button", "style": "primary", "action": {"type": "postback", "label": "注文用紙から注文", "data": "paper_order"}}
+                    ]
                 }
             ]
         }
