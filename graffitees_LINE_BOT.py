@@ -7,7 +7,7 @@ import logging
 import traceback
 import json
 
-# ★★★ line-bot-sdk v2 系 ★★★
+# ★ line-bot-sdk v2 系 ★
 from linebot import (
     LineBotApi,
     WebhookHandler
@@ -21,6 +21,7 @@ from linebot.models import (
     PostbackAction,
     FlexSendMessage,
     BubbleContainer,
+    CarouselContainer,
     BoxComponent,
     TextComponent,
     ButtonComponent
@@ -38,23 +39,10 @@ logger = logging.getLogger(__name__)
 line_bot_api = LineBotApi(CHANNEL_ACCESS_TOKEN)
 handler = WebhookHandler(CHANNEL_SECRET)
 
-# ------------------------------------------
-# ◆ ユーザーの状態管理: 簡易的に辞書で保持
-# ------------------------------------------
-user_states = {}  
-# 例: {
-#   "<user_id>": {
-#       "state": "await_school_name",
-#       "school_name": None,
-#       "prefecture": None,
-#       "early_discount": None,
-#       "budget": None,
-#       "product": None,
-#       "quantity": None,
-#       "print_position": None,
-#       "color_options": None
-#   }
-# }
+# ---------------------------------------
+# ユーザーの状態管理 (簡易) 実際は DB が望ましい
+# ---------------------------------------
+user_states = {}
 
 @app.route("/", methods=["GET"])
 def health_check():
@@ -79,7 +67,7 @@ def callback():
 
     return "OK", 200
 
-# -------- モード選択用 Flex --------
+# ------ モード選択用 Flex ------
 def create_mode_selection_flex():
     bubble = BubbleContainer(
         body=BoxComponent(
@@ -115,12 +103,8 @@ def create_mode_selection_flex():
         contents=bubble
     )
 
-# -------- 簡易見積導入 Flex --------
+# ------ 簡易見積導入 Flex ------
 def create_quick_estimate_intro_flex():
-    """
-    簡易見積モードに入った時に最初に表示するFlex。
-    8項目を案内し、「入力を開始する」ボタンを表示。
-    """
     bubble = BubbleContainer(
         body=BoxComponent(
             layout='vertical',
@@ -154,7 +138,7 @@ def create_quick_estimate_intro_flex():
         contents=bubble
     )
 
-# -------- 早割確認用 Flex (3) --------
+# ------ 早割確認 Flex (3) ------
 def create_early_discount_flex():
     bubble = BubbleContainer(
         body=BoxComponent(
@@ -185,52 +169,70 @@ def create_early_discount_flex():
         contents=bubble
     )
 
-# -------- 商品選択用 Flex (5) --------
-def create_product_selection_flex():
-    """
-    商品名の候補が14種あるが、ここでは例として4種だけボタンで表示。
-    実際にはCarouselContainerなどで複数バブルに分割を推奨
-    """
-    bubble = BubbleContainer(
+# =============================
+# 商品選択用 Carousel (5)
+# =============================
+# 全13アイテム (ユーザーのリスト) を、Bubble1に7件、Bubble2に6件で分割
+
+def create_product_selection_carousel():
+    # 1st Bubble → 7件
+    bubble1 = BubbleContainer(
         body=BoxComponent(
             layout='vertical',
             contents=[
                 TextComponent(
-                    text='商品を選択してください',
+                    text='商品を選択してください(1/2)',
                     weight='bold',
-                    size='md',
-                    wrap=True
+                    size='md'
                 )
             ]
         ),
         footer=BoxComponent(
             layout='vertical',
             contents=[
-                ButtonComponent(
-                    style='primary',
-                    action=PostbackAction(label='ドライTシャツ', data='ドライTシャツ')
-                ),
-                ButtonComponent(
-                    style='primary',
-                    action=PostbackAction(label='ヘビーウェイトTシャツ', data='ヘビーウェイトTシャツ')
-                ),
-                ButtonComponent(
-                    style='primary',
-                    action=PostbackAction(label='ドライポロシャツ', data='ドライポロシャツ')
-                ),
-                ButtonComponent(
-                    style='primary',
-                    action=PostbackAction(label='ドライメッシュビブス', data='ドライメッシュビブス')
-                )
+                ButtonComponent(style='primary', action=PostbackAction(label='ドライTシャツ', data='ドライTシャツ')),
+                ButtonComponent(style='primary', action=PostbackAction(label='ヘビーウェイトTシャツ', data='ヘビーウェイトTシャツ')),
+                ButtonComponent(style='primary', action=PostbackAction(label='ドライポロシャツ', data='ドライポロシャツ')),
+                ButtonComponent(style='primary', action=PostbackAction(label='ドライメッシュビブス', data='ドライメッシュビブス')),
+                ButtonComponent(style='primary', action=PostbackAction(label='ドライベースボールシャツ', data='ドライベースボールシャツ')),
+                ButtonComponent(style='primary', action=PostbackAction(label='ドライロングスリープTシャツ', data='ドライロングスリープTシャツ')),
+                ButtonComponent(style='primary', action=PostbackAction(label='ドライハーフパンツ', data='ドライハーフパンツ'))
             ]
         )
     )
-    return FlexSendMessage(
-        alt_text='商品を選択してください',
-        contents=bubble
+
+    # 2nd Bubble → 6件
+    bubble2 = BubbleContainer(
+        body=BoxComponent(
+            layout='vertical',
+            contents=[
+                TextComponent(
+                    text='商品を選択してください(2/2)',
+                    weight='bold',
+                    size='md'
+                )
+            ]
+        ),
+        footer=BoxComponent(
+            layout='vertical',
+            contents=[
+                ButtonComponent(style='primary', action=PostbackAction(label='ヘビーウェイトロングスリープTシャツ', data='ヘビーウェイトロングスリープTシャツ')),
+                ButtonComponent(style='primary', action=PostbackAction(label='クルーネックライトトレーナー', data='クルーネックライトトレーナー')),
+                ButtonComponent(style='primary', action=PostbackAction(label='フーデッドライトパーカー', data='フーデッドライトパーカー')),
+                ButtonComponent(style='primary', action=PostbackAction(label='スタンダードトレーナー', data='スタンダードトレーナー')),
+                ButtonComponent(style='primary', action=PostbackAction(label='スタンダードWフードパーカー', data='スタンダードWフードパーカー')),
+                ButtonComponent(style='primary', action=PostbackAction(label='ジップアップライトパーカー', data='ジップアップライトパーカー'))
+            ]
+        )
     )
 
-# -------- プリント位置選択用 Flex (7) --------
+    carousel = CarouselContainer(contents=[bubble1, bubble2])
+    return FlexSendMessage(
+        alt_text='商品を選択してください',
+        contents=carousel
+    )
+
+# ------ プリント位置選択 (7) ------
 def create_print_position_flex():
     bubble = BubbleContainer(
         body=BoxComponent(
@@ -247,18 +249,9 @@ def create_print_position_flex():
         footer=BoxComponent(
             layout='vertical',
             contents=[
-                ButtonComponent(
-                    style='primary',
-                    action=PostbackAction(label='前', data='front')
-                ),
-                ButtonComponent(
-                    style='primary',
-                    action=PostbackAction(label='背中', data='back')
-                ),
-                ButtonComponent(
-                    style='primary',
-                    action=PostbackAction(label='前と背中', data='front_back')
-                )
+                ButtonComponent(style='primary', action=PostbackAction(label='前', data='front')),
+                ButtonComponent(style='primary', action=PostbackAction(label='背中', data='back')),
+                ButtonComponent(style='primary', action=PostbackAction(label='前と背中', data='front_back'))
             ]
         )
     )
@@ -267,7 +260,7 @@ def create_print_position_flex():
         contents=bubble
     )
 
-# -------- 使用する色数選択用 Flex (8) --------
+# ------ 使用する色数選択 (8) ------
 def create_color_options_flex():
     bubble = BubbleContainer(
         body=BoxComponent(
@@ -280,7 +273,7 @@ def create_color_options_flex():
                     wrap=True
                 ),
                 TextComponent(
-                    text='(複数選択が必要な場合は追加の実装が必要)',
+                    text='(複数選択が必要な場合は追加実装してください)',
                     size='sm',
                     wrap=True
                 )
@@ -289,18 +282,9 @@ def create_color_options_flex():
         footer=BoxComponent(
             layout='vertical',
             contents=[
-                ButtonComponent(
-                    style='primary',
-                    action=PostbackAction(label='同じ位置にプリントカラー追加', data='same_color_add')
-                ),
-                ButtonComponent(
-                    style='primary',
-                    action=PostbackAction(label='別の場所にプリント位置追加', data='different_color_add')
-                ),
-                ButtonComponent(
-                    style='primary',
-                    action=PostbackAction(label='フルカラーに追加', data='full_color_add')
-                )
+                ButtonComponent(style='primary', action=PostbackAction(label='同じ位置にプリントカラー追加', data='same_color_add')),
+                ButtonComponent(style='primary', action=PostbackAction(label='別の場所にプリント位置追加', data='different_color_add')),
+                ButtonComponent(style='primary', action=PostbackAction(label='フルカラーに追加', data='full_color_add'))
             ]
         )
     )
@@ -309,28 +293,29 @@ def create_color_options_flex():
         contents=bubble
     )
 
-# -------- ユーザーがテキストを送ったときのハンドラ --------
+# =============================
+# テキストメッセージハンドラ
+# =============================
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
     user_id = event.source.user_id
     user_input = event.message.text.strip()
     logger.info(f"user_input: {user_input}")
 
-    # 「モード選択」と入力された → 3 つのモードボタンを返信
+    # (A) 「モード選択」と入力された場合 → 3つのモードボタンを表示
     if user_input == "モード選択":
         flex_msg = create_mode_selection_flex()
         line_bot_api.reply_message(event.reply_token, flex_msg)
         return
 
-    # 簡易見積モード中かどうか
+    # (B) 簡易見積モード中の状態管理
     if user_id in user_states:
         state_data = user_states[user_id]
         current_state = state_data.get("state")
 
-        # 1. 学校名 待ち
+        # 1. 学校名
         if current_state == "await_school_name":
             state_data["school_name"] = user_input
-            # 次は 2. お届け先(都道府県)
             state_data["state"] = "await_prefecture"
             line_bot_api.reply_message(
                 event.reply_token,
@@ -338,25 +323,25 @@ def handle_message(event):
             )
             return
 
-        # 2. 都道府県 待ち
+        # 2. お届け先(都道府県)
         if current_state == "await_prefecture":
             state_data["prefecture"] = user_input
             # 次は 3. 早割確認 → Flex
             state_data["state"] = "await_early_discount"
-            flex = create_early_discount_flex()
-            line_bot_api.reply_message(event.reply_token, flex)
+            discount_flex = create_early_discount_flex()
+            line_bot_api.reply_message(event.reply_token, discount_flex)
             return
 
-        # 4. 1枚当たりの予算 待ち
+        # 4. 1枚当たりの予算
         if current_state == "await_budget":
             state_data["budget"] = user_input
-            # 次は 5. 商品選択 → Flex
+            # 次は 5. 商品名 → Carousel Flex
             state_data["state"] = "await_product"
-            product_flex = create_product_selection_flex()
-            line_bot_api.reply_message(event.reply_token, product_flex)
+            product_carousel = create_product_selection_carousel()
+            line_bot_api.reply_message(event.reply_token, product_carousel)
             return
 
-        # 6. 枚数 待ち
+        # 6. 枚数
         if current_state == "await_quantity":
             state_data["quantity"] = user_input
             # 次は 7. プリント位置 → Flex
@@ -365,35 +350,37 @@ def handle_message(event):
             line_bot_api.reply_message(event.reply_token, position_flex)
             return
 
-        # 上記以外の状態でテキストが来た場合
+        # 他の状態でテキストが来た場合
         line_bot_api.reply_message(
             event.reply_token,
-            TextSendMessage(text=f"現在の状態({current_state})ではテキスト入力は想定外です。")
+            TextSendMessage(text=f"現在の状態({current_state})でテキスト入力は想定外です。")
         )
         return
 
-    # ここまで来たら通常のテキストリプライ
+    # (C) 通常メッセージ
     line_bot_api.reply_message(
         event.reply_token,
         TextSendMessage(text=f"あなたのメッセージ: {user_input}")
     )
 
 
-# -------- ユーザーがボタンを押したときのハンドラ --------
+# =============================
+# ポストバックハンドラ
+# =============================
 @handler.add(PostbackEvent)
 def handle_postback(event):
     user_id = event.source.user_id
     data = event.postback.data
     logger.info(f"Postback data: {data}")
 
+    # 簡易見積モードへ
     if data == "quick_estimate":
-        # 簡易見積モードの導入Flexを送る
-        flex_msg = create_quick_estimate_intro_flex()
-        line_bot_api.reply_message(event.reply_token, flex_msg)
+        intro_flex = create_quick_estimate_intro_flex()
+        line_bot_api.reply_message(event.reply_token, intro_flex)
         return
 
+    # 簡易見積開始
     if data == "start_quick_estimate_input":
-        # 簡易見積のステート初期化
         user_states[user_id] = {
             "state": "await_school_name",
             "school_name": None,
@@ -411,8 +398,8 @@ def handle_postback(event):
         )
         return
 
+    # もし user_id がまだ登録されていない場合
     if user_id not in user_states:
-        # 簡易見積モードでない
         line_bot_api.reply_message(
             event.reply_token,
             TextSendMessage(text="簡易見積モードではありません。")
@@ -420,9 +407,9 @@ def handle_postback(event):
         return
 
     state_data = user_states[user_id]
-    current_state = state_data.get("state")
+    current_state = state_data["state"]
 
-    # 3. 早割確認 (Postback)
+    # 3. 早割確認
     if current_state == "await_early_discount":
         if data == "14days_plus":
             state_data["early_discount"] = "14日前以上"
@@ -443,9 +430,9 @@ def handle_postback(event):
         )
         return
 
-    # 5. 商品名 (Postback)
+    # 5. 商品名 (Carousel)
     if current_state == "await_product":
-        # ボタンが複数ある想定。ここでは4種のみ例
+        # data に各商品名が入る
         state_data["product"] = data
         # 次は 6. 枚数 → テキスト入力
         state_data["state"] = "await_quantity"
@@ -455,7 +442,7 @@ def handle_postback(event):
         )
         return
 
-    # 7. プリント位置 (Postback)
+    # 7. プリント位置
     if current_state == "await_print_position":
         if data == "front":
             state_data["print_position"] = "前"
@@ -472,11 +459,11 @@ def handle_postback(event):
 
         # 次は 8. 使用する色数 → Flex
         state_data["state"] = "await_color_options"
-        flex = create_color_options_flex()
-        line_bot_api.reply_message(event.reply_token, flex)
+        color_flex = create_color_options_flex()
+        line_bot_api.reply_message(event.reply_token, color_flex)
         return
 
-    # 8. 使用する色数 (Postback)
+    # 8. 使用する色数
     if current_state == "await_color_options":
         if data == "same_color_add":
             state_data["color_options"] = "同じ位置にプリントカラー追加"
@@ -491,7 +478,7 @@ def handle_postback(event):
             )
             return
 
-        # 全項目完了
+        # 最終項目完了 → 結果まとめ表示
         summary = (
             f"学校/団体名: {state_data['school_name']}\n"
             f"都道府県: {state_data['prefecture']}\n"
@@ -502,7 +489,6 @@ def handle_postback(event):
             f"プリント位置: {state_data['print_position']}\n"
             f"使用する色数: {state_data['color_options']}"
         )
-        # 状態をリセット or 破棄
         del user_states[user_id]
 
         line_bot_api.reply_message(
@@ -513,12 +499,11 @@ def handle_postback(event):
         )
         return
 
-    # ここまで来たら想定外のデータ
+    # 想定外
     line_bot_api.reply_message(
         event.reply_token,
         TextSendMessage(text=f"不明なアクション: {data}")
     )
-
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8000, debug=True)
