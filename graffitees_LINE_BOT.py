@@ -332,22 +332,15 @@ def create_mode_selection_flex():
 ###################################
 # 「簡易見積」用のフロー
 ###################################
-def create_quick_estimate_intro_flex():
+def create_mode_selection_flex():
     bubble = BubbleContainer(
         body=BoxComponent(
             layout='vertical',
             contents=[
                 TextComponent(
-                    text='簡易見積に必要な項目を順番に確認します。\n'
-                         '1. 学校/団体名\n'
-                         '2. お届け先(都道府県)\n'
-                         '3. 早割確認\n'
-                         '4. 1枚当たりの予算\n'
-                         '5. 商品名\n'
-                         '6. 枚数\n'
-                         '7. プリント位置\n'
-                         '8. 使用する色数',
-                    wrap=True
+                    text='モードを選択してください!',
+                    weight='bold',
+                    size='lg'
                 )
             ]
         ),
@@ -356,13 +349,21 @@ def create_quick_estimate_intro_flex():
             contents=[
                 ButtonComponent(
                     style='primary',
-                    action=PostbackAction(label='入力を開始する', data='start_quick_estimate_input')
+                    action=PostbackAction(label='簡易見積', data='quick_estimate')
+                ),
+                ButtonComponent(
+                    style='primary',
+                    action=PostbackAction(label='WEBフォームから注文', data='web_order')
+                ),
+                ButtonComponent(
+                    style='primary',
+                    action=PostbackAction(label='注文用紙から注文', data='paper_order')
                 )
             ]
         )
     )
     return FlexSendMessage(
-        alt_text='簡易見積モードへようこそ',
+        alt_text='モードを選択してください',
         contents=bubble
     )
 
