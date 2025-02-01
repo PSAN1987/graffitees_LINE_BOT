@@ -19,15 +19,13 @@ from linebot.v3.webhooks import (
     MessageEvent,
     TextMessageContent
 )
-
-# Flex関連のクラスは "linebot.v3.messaging.models.flex_message" から
-from linebot.v3.messaging.models.flex_message import (
-    Bubble,
+# ここがポイント：フォルダが "flex_messages" になっている
+from linebot.v3.messaging.models.flex_messages.bubble import Bubble
+from linebot.v3.messaging.models.flex_messages.component import (
     Box,
     Text,
     Button
 )
-# アクション系は "linebot.v3.messaging.models.action" から
 from linebot.v3.messaging.models.action import PostbackAction
 
 import logging
