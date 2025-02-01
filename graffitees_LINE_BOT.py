@@ -19,14 +19,6 @@ from linebot.v3.webhooks import (
     MessageEvent,
     TextMessageContent
 )
-# ここがポイント：フォルダが "flex_messages" になっている
-from linebot.v3.messaging.models.flex_messages.bubble import Bubble
-from linebot.v3.messaging.models.flex_messages.component import (
-    Box,
-    Text,
-    Button
-)
-from linebot.v3.messaging.models.action import PostbackAction
 
 import logging
 import traceback
@@ -92,51 +84,63 @@ def callback():
 
     return 'OK', 200
 
-# Flex Message作成用関数 (v3対応)
+# Flex Message作成用関数 (辞書形式)
 def create_flex_message():
-    bubble = Bubble(
-        body=Box(
-            layout='vertical',
-            contents=[
-                Text(
-                    text='モードを選択してください!',
-                    weight='bold',
-                    size='lg',
-                    wrap=True
-                )
+    # Flex MessageのJSON構造を辞書で定義
+    bubble_dict = {
+        "type": "bubble",
+        "body": {
+            "type": "box",
+            "layout": "vertical",
+            "contents": [
+                {
+                    "type": "text",
+                    "text": "モードを選択してください!",
+                    "weight": "bold",
+                    "size": "lg",
+                    "wrap": True
+                }
             ]
-        ),
-        footer=Box(
-            layout='vertical',
-            contents=[
-                Button(
-                    style='primary',
-                    action=PostbackAction(
-                        label='簡易見積',
-                        data='quick_estimate'
-                    )
-                ),
-                Button(
-                    style='primary',
-                    action=PostbackAction(
-                        label='WEBフォームから注文',
-                        data='web_order'
-                    )
-                ),
-                Button(
-                    style='primary',
-                    action=PostbackAction(
-                        label='注文用紙から注文',
-                        data='paper_order'
-                    )
-                )
+        },
+        "footer": {
+            "type": "box",
+            "layout": "vertical",
+            "contents": [
+                {
+                    "type": "button",
+                    "style": "primary",
+                    "action": {
+                        "type": "postback",
+                        "label": "簡易見積",
+                        "data": "quick_estimate"
+                    }
+                },
+                {
+                    "type": "button",
+                    "style": "primary",
+                    "action": {
+                        "type": "postback",
+                        "label": "WEBフォームから注文",
+                        "data": "web_order"
+                    }
+                },
+                {
+                    "type": "button",
+                    "style": "primary",
+                    "action": {
+                        "type": "postback",
+                        "label": "注文用紙から注文",
+                        "data": "paper_order"
+                    }
+                }
             ]
-        )
-    )
+        }
+    }
 
+    # 辞書をcontentsに渡してFlexMessageオブジェクトを生成
     return FlexMessage(
-        alt_text='モードを選択してください',
-        contents=bubble
+        alt_text="モードを選択してください",
+        contents=bubble_dict
     )
 
 # メッセージイベントのハンドラ
