@@ -15,16 +15,19 @@ from linebot.v3.messaging import (
     TextMessage,
     FlexMessage
 )
-from linebot.v3.webhooks import MessageEvent, TextMessageContent
+from linebot.v3.webhooks import (
+    MessageEvent,
+    TextMessageContent
+)
 
-# ★Flex関連パーツは v3.messaging.models からインポートする★
-from linebot.v3.messaging.models import (
+# ★ Flex関連のクラスは v3.types.flex_message / action からインポート ★
+from linebot.v3.types.flex_message import (
     Bubble,
     Box,
     Text,
-    Button,
-    PostbackAction
+    Button
 )
+from linebot.v3.types.action import PostbackAction
 
 import logging
 import traceback
@@ -65,7 +68,7 @@ def get_db_connection():
         port=DATABASE_PORT
     )
 
-# ルートエンドポイント (ヘルスチェック用)
+# ルートエンドポイント (Render Health Check 用)
 @app.route("/", methods=["GET"])
 def health_check():
     return "OK", 200
@@ -90,7 +93,7 @@ def callback():
 
     return 'OK', 200
 
-# Flex Message作成用関数
+# Flex Message作成用関数 (v3対応)
 def create_flex_message():
     """
     LINE Bot SDK v3対応のFlex Messageの例
@@ -148,13 +151,13 @@ def handle_message(event):
     user_input = event.message.text.strip()
 
     if user_input == "モード選択":
-        # FlexMessageを返す
+        # FlexMessage を返す
         reply_message = create_flex_message()
     else:
         # 通常のテキストメッセージ
         reply_message = TextMessage(text=f"あなたのメッセージ: {user_input}")
 
-    # v3 では ReplyMessageRequest に v3モデルをリストで渡す
+    # v3 では ReplyMessageRequest に v3 のモデルをリストで渡す
     body = ReplyMessageRequest(
         reply_token=event.reply_token,
         messages=[reply_message]
@@ -162,4 +165,5 @@ def handle_message(event):
     messaging_api.reply_message(body)
 
 if __name__ == "__main__":
+    # gunicorn で起動するなら下記不要ですが、ローカル実行テスト用に残します
     app.run(host="0.0.0.0", port=8000, debug=True)
