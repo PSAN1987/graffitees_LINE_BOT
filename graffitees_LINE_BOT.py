@@ -94,7 +94,7 @@ def handle_message(event):
     if user_input == "モード選択":
         reply_message = create_flex_message()
     else:
-        reply_message = TextMessage(text="モードを選択する場合は「モード選択」と送信してください。")
+        reply_message = TextMessage(text=f"あなたのメッセージ: {user_input}")
     messaging_api.reply_message(ReplyMessageRequest(reply_token=event.reply_token, messages=[reply_message]))
 
 if __name__ == "__main__":
