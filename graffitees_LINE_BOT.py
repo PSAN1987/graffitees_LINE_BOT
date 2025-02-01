@@ -66,6 +66,8 @@ def callback():
     return 'OK', 200
 
 # Flex Messageテンプレートを作成
+from linebot.models import FlexSendMessage
+
 def create_flex_message():
     flex_content = {
         "type": "bubble",
@@ -73,21 +75,51 @@ def create_flex_message():
             "type": "box",
             "layout": "vertical",
             "contents": [
-                {"type": "text", "text": "モードを選択してください", "weight": "bold", "size": "lg"},
                 {
-                    "type": "box",
-                    "layout": "vertical",
-                    "margin": "md",
-                    "contents": [
-                        {"type": "button", "style": "primary", "action": {"type": "postback", "label": "簡易見積", "data": "quick_estimate"}},
-                        {"type": "button", "style": "primary", "action": {"type": "postback", "label": "WEBフォームから注文", "data": "web_order"}},
-                        {"type": "button", "style": "primary", "action": {"type": "postback", "label": "注文用紙から注文", "data": "paper_order"}}
-                    ]
+                    "type": "text",
+                    "text": "モードを選択してください",
+                    "weight": "bold",
+                    "size": "lg",
+                    "wrap": True
+                }
+            ]
+        },
+        "footer": {
+            "type": "box",
+            "layout": "vertical",
+            "contents": [
+                {
+                    "type": "button",
+                    "style": "primary",
+                    "action": {
+                        "type": "postback",
+                        "label": "簡易見積",
+                        "data": "quick_estimate"
+                    }
+                },
+                {
+                    "type": "button",
+                    "style": "primary",
+                    "action": {
+                        "type": "postback",
+                        "label": "WEBフォームから注文",
+                        "data": "web_order"
+                    }
+                },
+                {
+                    "type": "button",
+                    "style": "primary",
+                    "action": {
+                        "type": "postback",
+                        "label": "注文用紙から注文",
+                        "data": "paper_order"
+                    }
                 }
             ]
         }
     }
-    return FlexMessage(alt_text="モードを選択してください", contents=flex_content)
+    # alt_textはFlexMessageが表示できない環境で表示される代替テキストです
+    return FlexSendMessage(alt_text="モードを選択してください", contents=flex_content)
 
 # メッセージイベントの処理
 @handler.add(MessageEvent, message=TextMessageContent)
