@@ -156,6 +156,7 @@ def handle_message(event):
     user_input = event.message.text.strip()
 
     if user_input == "モード選択":
+        logger.info(f"reply_message = {reply_message}")
         reply_message = create_flex_message()
     else:
         reply_message = TextMessage(text=f"あなたのメッセージ: {user_input}")
