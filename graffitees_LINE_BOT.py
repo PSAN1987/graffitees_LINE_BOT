@@ -101,7 +101,7 @@ def create_flex_message():
             layout='vertical',
             contents=[
                 Text(
-                    text='モードを選択してください',
+                    text='モードを選択してください!',
                     weight='bold',
                     size='lg',
                     wrap=True
