@@ -20,20 +20,6 @@ from linebot.v3.webhooks import (
     TextMessageContent
 )
 
-# Flex関連のクラスは "linebot.v3.messaging.models.flex_message" から
-from linebot.v3.messaging.models.flex_message import (
-    Bubble,
-    Box,
-    Text,
-    Button
-)
-# アクション系は "linebot.v3.messaging.models.action" から
-from linebot.v3.messaging.models.action import PostbackAction
-
-import logging
-import traceback
-import json
-
 # 環境変数を読み込む
 load_dotenv()
 
