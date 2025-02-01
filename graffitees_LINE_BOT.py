@@ -3,6 +3,8 @@ import psycopg2
 import requests
 from dotenv import load_dotenv
 from flask import Flask, request, abort
+
+# linebot v3 関連インポート
 from linebot.v3 import WebhookHandler
 from linebot.v3.exceptions import InvalidSignatureError
 from linebot.v3.messaging import (
@@ -10,12 +12,9 @@ from linebot.v3.messaging import (
     ReplyMessageRequest, TextMessage, FlexMessage
 )
 from linebot.v3.webhooks import MessageEvent, TextMessageContent
-import logging
-import traceback
-import json
 
+# Flex関連パーツ (Pydanticモデル)
 from linebot.v3.messaging import (
-    FlexMessage,
     BubbleContainer,
     BoxComponent,
     TextComponent,
@@ -23,10 +22,14 @@ from linebot.v3.messaging import (
     PostbackAction
 )
 
+import logging
+import traceback
+import json
+
 # 環境変数を読み込む
 load_dotenv()
 
-# 環境設定
+# 環境変数から各種情報を取得
 CHANNEL_ACCESS_TOKEN = os.getenv('CHANNEL_ACCESS_TOKEN')
 CHANNEL_SECRET = os.getenv('CHANNEL_SECRET')
 DATABASE_NAME = os.getenv('DATABASE_NAME')
@@ -51,8 +54,11 @@ handler = WebhookHandler(CHANNEL_SECRET)
 # データベース接続関数
 def get_db_connection():
     return psycopg2.connect(
-        dbname=DATABASE_NAME, user=DATABASE_USER,
-        password=DATABASE_PASSWORD, host=DATABASE_HOST, port=DATABASE_PORT
+        dbname=DATABASE_NAME,
+        user=DATABASE_USER,
+        password=DATABASE_PASSWORD,
+        host=DATABASE_HOST,
+        port=DATABASE_PORT
     )
 
 # ルートエンドポイント (Render Health Check 用)
@@ -60,24 +66,31 @@ def get_db_connection():
 def health_check():
     return "OK", 200
 
-# LINE Webhook用エンドポイント
+# Webhookエンドポイント (※1つだけ定義)
 @app.route("/callback", methods=['POST'])
 def callback():
     signature = request.headers.get('X-Line-Signature', '')
     if not signature:
         abort(400)
 
+    body = request.get_data(as_text=True)
     try:
-        handler.handle(request.get_data(as_text=True), signature)
-    except InvalidSignatureError:
+        handler.handle(body, signature)
+    except InvalidSignatureError as e:
+        logger.error(f"Invalid signature. Error: {e}")
         abort(400)
-    
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}")
+        traceback.print_exc()
+        abort(500)
+
     return 'OK', 200
 
-# Flex Messageテンプレートを作成
-from linebot.models import FlexSendMessag
+# Flex Message作成用関数
 def create_flex_message():
-    # "bubble" コンテナを作る
+    """
+    v3 の Pydantic モデルを使用して FlexMessage を組み立てる例
+    """
     bubble = BubbleContainer(
         body=BoxComponent(
             layout='vertical',
@@ -118,40 +131,30 @@ def create_flex_message():
         )
     )
 
-    # FlexMessage を生成
-    flex_message = FlexMessage(
+    # alt_text は Flex Message 非対応デバイス向けの代替テキスト
+    return FlexMessage(
         alt_text='モードを選択してください',
         contents=bubble
     )
-    return flex_message
 
-# メッセージイベントの処理
-@app.route("/callback", methods=['POST'])
-def callback():
-    signature = request.headers['X-Line-Signature']
-    body = request.get_data(as_text=True)
-    handler.handle(body, signature)
-    return 'OK', 200
-
-
-@handler.add(MessageEvent, message=TextMessage)
+# メッセージイベントのハンドラ
+@handler.add(MessageEvent, message=TextMessageContent)
 def handle_message(event):
     user_input = event.message.text.strip()
 
-    # 「モード選択」と入力された場合だけ Flex メッセージを返す例
     if user_input == "モード選択":
+        # FlexMessage を返す
         reply_message = create_flex_message()
     else:
-        # 通常のテキストメッセージを返す
+        # 通常のテキストメッセージ
         reply_message = TextMessage(text=f"あなたのメッセージ: {user_input}")
 
-    # v3 では ReplyMessageRequest に Pydantic モデルのリストを渡す
+    # v3 では ReplyMessageRequest に v3 のモデルをリストで渡す
     body = ReplyMessageRequest(
         reply_token=event.reply_token,
         messages=[reply_message]
     )
     messaging_api.reply_message(body)
-
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8000, debug=True)
