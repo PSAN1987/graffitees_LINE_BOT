@@ -39,7 +39,6 @@ CHANNEL_SECRET = os.getenv('CHANNEL_SECRET')
 AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
 AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
 S3_BUCKET_NAME = os.getenv('S3_BUCKET_NAME')
-# ↑↑↑必要なら設定。なければ画像アップロード機能をスキップまたはローカル保存。
 
 DATABASE_NAME = os.getenv('DATABASE_NAME')
 DATABASE_USER = os.getenv('DATABASE_USER')
@@ -73,7 +72,7 @@ def get_db_connection():
     )
 
 ###################################
-# (D) S3にファイルをアップロード (例)
+# (D) S3にファイルをアップロード
 ###################################
 import boto3
 from werkzeug.utils import secure_filename
@@ -84,7 +83,7 @@ def upload_file_to_s3(file_storage, s3_bucket, prefix="uploads/"):
     file_storage: FlaskのFileStorageオブジェクト (request.files['...'])
     s3_bucket: アップ先のS3バケット名
     prefix: S3上のパスのプレフィックス
-    戻り値: アップロード後のS3ファイルURL
+    戻り値: アップロード後のS3ファイルURL (空なら None)
     """
     if not file_storage or file_storage.filename == "":
         return None
@@ -95,7 +94,6 @@ def upload_file_to_s3(file_storage, s3_bucket, prefix="uploads/"):
         aws_secret_access_key=AWS_SECRET_ACCESS_KEY
     )
 
-    # 一意のファイル名 (UUID + 元ファイル名)
     filename = secure_filename(file_storage.filename)
     unique_id = str(uuid.uuid4())
     s3_key = prefix + unique_id + "_" + filename
@@ -109,18 +107,17 @@ def upload_file_to_s3(file_storage, s3_bucket, prefix="uploads/"):
 # (E) 価格表と計算ロジック
 ###################################
 PRICE_TABLE = [
-    # ドライTシャツ (一部のみ)
     ("ドライTシャツ", 10, 14, "早割", 1830, 850, 850, 550),
     ("ドライTシャツ", 10, 14, "通常", 2030, 850, 850, 550),
-    # ... 省略: 本来は全行
+    # ... 本来は全行
 ]
 
 def calc_total_price(
     product_name: str,
     quantity: int,
     early_discount_str: str,  # "14日前以上" => "早割", それ以外 => "通常"
-    print_position: str,      # "前" / "背中" / "前と背中"
-    color_option: str         # same_color_add / different_color_add / full_color_add
+    print_position: str,
+    color_option: str
 ) -> int:
     if early_discount_str == "14日前以上":
         discount_type = "早割"
@@ -138,7 +135,6 @@ def calc_total_price(
         return 0
 
     (_, _, _, _, unit_price, color_price, pos_price, full_price) = row
-
     base = unit_price * quantity
     option_cost = 0
 
@@ -149,7 +145,6 @@ def calc_total_price(
     elif color_option == "full_color_add":
         option_cost += full_price * quantity
 
-    # 例: "背中"や"前と背中"に追加料金があるならここで加算
     total = base + option_cost
     return total
 
@@ -184,15 +179,17 @@ def create_quick_estimate_intro_flex():
             layout='vertical',
             contents=[
                 TextComponent(
-                    text='簡易見積に必要な項目を順番に確認します。\n'
-                         '1. 学校/団体名\n'
-                         '2. お届け先(都道府県)\n'
-                         '3. 早割確認\n'
-                         '4. 1枚当たりの予算\n'
-                         '5. 商品名\n'
-                         '6. 枚数\n'
-                         '7. プリント位置\n'
-                         '8. 使用する色数',
+                    text=(
+                        '簡易見積に必要な項目を順番に確認します。\n'
+                        '1. 学校/団体名\n'
+                        '2. お届け先(都道府県)\n'
+                        '3. 早割確認\n'
+                        '4. 1枚当たりの予算\n'
+                        '5. 商品名\n'
+                        '6. 枚数\n'
+                        '7. プリント位置\n'
+                        '8. 使用する色数'
+                    ),
                     wrap=True
                 )
             ]
@@ -222,7 +219,6 @@ def create_early_discount_flex():
     return FlexSendMessage(alt_text='早割確認', contents=bubble)
 
 def create_product_selection_carousel():
-    # 2バブルに分けた例
     bubble1 = BubbleContainer(
         body=BoxComponent(layout='vertical', contents=[
             TextComponent(text='商品を選択してください(1/2)', weight='bold', size='md')
@@ -318,16 +314,13 @@ def handle_text_message(event):
     user_input = event.message.text.strip()
     logger.info(f"[DEBUG] user_input: '{user_input}'")
 
-    # 「モード選択」と入力されたら3モードボタンを返す
     if user_input == "モード選択":
         flex = create_mode_selection_flex()
         line_bot_api.reply_message(event.reply_token, flex)
         return
 
-    # 簡易見積モード中かどうか
     if user_id in user_states:
         st = user_states[user_id].get("state")
-        # 1. 学校名
         if st == "await_school_name":
             user_states[user_id]["school_name"] = user_input
             user_states[user_id]["state"] = "await_prefecture"
@@ -337,7 +330,6 @@ def handle_text_message(event):
             )
             return
 
-        # 2. 都道府県
         if st == "await_prefecture":
             user_states[user_id]["prefecture"] = user_input
             user_states[user_id]["state"] = "await_early_discount"
@@ -345,7 +337,6 @@ def handle_text_message(event):
             line_bot_api.reply_message(event.reply_token, discount_flex)
             return
 
-        # 4. 予算
         if st == "await_budget":
             user_states[user_id]["budget"] = user_input
             user_states[user_id]["state"] = "await_product"
@@ -353,7 +344,6 @@ def handle_text_message(event):
             line_bot_api.reply_message(event.reply_token, product_flex)
             return
 
-        # 6. 枚数
         if st == "await_quantity":
             user_states[user_id]["quantity"] = user_input
             user_states[user_id]["state"] = "await_print_position"
@@ -368,7 +358,6 @@ def handle_text_message(event):
         )
         return
 
-    # 通常メッセージ
     line_bot_api.reply_message(
         event.reply_token,
         TextSendMessage(text=f"あなたのメッセージ: {user_input}")
@@ -383,13 +372,11 @@ def handle_postback(event):
     data = event.postback.data
     logger.info(f"[DEBUG] Postback data: {data}")
 
-    # 簡易見積モードへ
     if data == "quick_estimate":
         intro = create_quick_estimate_intro_flex()
         line_bot_api.reply_message(event.reply_token, intro)
         return
 
-    # 簡易見積の入力開始
     if data == "start_quick_estimate_input":
         user_states[user_id] = {
             "state": "await_school_name",
@@ -408,27 +395,22 @@ def handle_postback(event):
         )
         return
 
-    # WEBフォームから注文
     if data == "web_order":
-        # ユーザーIDをクエリに付けたURLを案内
         form_url = f"https://graffitees-line-bot.onrender.com/webform?user_id={user_id}"
-        msg = ("WEBフォームから注文ですね！\n" + f"こちらから入力してください。\n{form_url}")
+        msg = (f"WEBフォームから注文ですね！\nこちらから入力してください。\n{form_url}")
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=msg))
         return
 
-    # 注文用紙から注文
     if data == "paper_order":
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text="注文用紙から注文は未実装です。"))
         return
 
-    # ここから下は、簡易見積フロー
     if user_id not in user_states:
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text="簡易見積モードではありません。"))
         return
 
     st = user_states[user_id]["state"]
 
-    # 3. 早割確認
     if st == "await_early_discount":
         if data == "14days_plus":
             user_states[user_id]["early_discount"] = "14日前以上"
@@ -441,7 +423,6 @@ def handle_postback(event):
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text="早割を保存しました。\n1枚あたりの予算を入力してください。"))
         return
 
-    # 5. 商品名
     if st == "await_product":
         user_states[user_id]["product"] = data
         user_states[user_id]["state"] = "await_quantity"
@@ -451,7 +432,6 @@ def handle_postback(event):
         )
         return
 
-    # 7. プリント位置
     if st == "await_print_position":
         if data == "front":
             user_states[user_id]["print_position"] = "前"
@@ -467,7 +447,6 @@ def handle_postback(event):
         line_bot_api.reply_message(event.reply_token, color_flex)
         return
 
-    # 8. カラーオプション
     if st == "await_color_options":
         if data not in ["same_color_add", "different_color_add", "full_color_add"]:
             line_bot_api.reply_message(event.reply_token, TextSendMessage(text="色数の選択が不明です。"))
@@ -503,7 +482,6 @@ def handle_postback(event):
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply_text))
         return
 
-    # 想定外
     line_bot_api.reply_message(event.reply_token, TextSendMessage(text=f"不明なアクション: {data}"))
 
 ###################################
@@ -589,7 +567,6 @@ FORM_HTML = """
     <p>サイズ(LL): <input type="number" name="size_ll"></p>
     <p>サイズ(LLL): <input type="number" name="size_lll"></p>
 
-    <!-- ここからプリントサイズ/カラーなど。画像アップロード箇所も例示 -->
     <p>プリントデザインイメージデータ(前): <input type="file" name="design_image_front"></p>
     <p>プリントデザインイメージデータ(後): <input type="file" name="design_image_back"></p>
     <p>プリントデザインイメージデータ(その他): <input type="file" name="design_image_other"></p>
@@ -606,50 +583,72 @@ def show_webform():
     return render_template_string(FORM_HTML, user_id=user_id)
 
 ###################################
-# (M) /webform_submit: フォーム送信受け取り
+# (M) 空文字を None にする関数
+###################################
+def none_if_empty_str(val: str):
+    """文字列入力が空なら None, そうでなければ文字列を返す"""
+    if not val:  # '' or None
+        return None
+    return val
+
+def none_if_empty_date(val: str):
+    """日付カラム用: 空なら None、そうでなければそのまま文字列として渡す (Postgresがdate型に変換)"""
+    if not val:
+        return None
+    return val
+
+def none_if_empty_int(val: str):
+    """数値カラム用: 空なら None, それ以外はintに変換"""
+    if not val:
+        return None
+    return int(val)
+
+###################################
+# (N) /webform_submit: フォーム送信受け取り
 ###################################
 @app.route("/webform_submit", methods=["POST"])
 def webform_submit():
-    # request.form + request.files
     form = request.form
     files = request.files
     user_id = form.get("user_id", "")
 
-    # テキスト項目を取得
-    order_data = {
-        "application_date": form.get("application_date"),
-        "delivery_date": form.get("delivery_date"),
-        "use_date": form.get("use_date"),
-        "discount_option": form.get("discount_option"),
-        "school_name": form.get("school_name"),
-        "line_account": form.get("line_account"),
-        "group_name": form.get("group_name"),
-        "school_address": form.get("school_address"),
-        "school_tel": form.get("school_tel"),
-        "teacher_name": form.get("teacher_name"),
-        "teacher_tel": form.get("teacher_tel"),
-        "teacher_email": form.get("teacher_email"),
-        "representative": form.get("representative"),
-        "rep_tel": form.get("rep_tel"),
-        "rep_email": form.get("rep_email"),
-        "design_confirm": form.get("design_confirm"),
-        "payment_method": form.get("payment_method"),
-        "product_name": form.get("product_name"),
-        "product_color": form.get("product_color"),
-        "size_ss": form.get("size_ss"),
-        "size_s": form.get("size_s"),
-        "size_m": form.get("size_m"),
-        "size_l": form.get("size_l"),
-        "size_ll": form.get("size_ll"),
-        "size_lll": form.get("size_lll"),
-    }
+    # ---------- テキスト項目を取得 (空文字はNone化) ----------
+    application_date = none_if_empty_date(form.get("application_date"))
+    delivery_date = none_if_empty_date(form.get("delivery_date"))
+    use_date = none_if_empty_date(form.get("use_date"))
 
-    # 画像ファイル
+    discount_option = none_if_empty_str(form.get("discount_option"))
+    school_name = none_if_empty_str(form.get("school_name"))
+    line_account = none_if_empty_str(form.get("line_account"))
+    group_name = none_if_empty_str(form.get("group_name"))
+    school_address = none_if_empty_str(form.get("school_address"))
+    school_tel = none_if_empty_str(form.get("school_tel"))
+    teacher_name = none_if_empty_str(form.get("teacher_name"))
+    teacher_tel = none_if_empty_str(form.get("teacher_tel"))
+    teacher_email = none_if_empty_str(form.get("teacher_email"))
+    representative = none_if_empty_str(form.get("representative"))
+    rep_tel = none_if_empty_str(form.get("rep_tel"))
+    rep_email = none_if_empty_str(form.get("rep_email"))
+
+    design_confirm = none_if_empty_str(form.get("design_confirm"))
+    payment_method = none_if_empty_str(form.get("payment_method"))
+    product_name = none_if_empty_str(form.get("product_name"))
+    product_color = none_if_empty_str(form.get("product_color"))
+
+    # サイズは数値カラムの場合、intかNone
+    size_ss = none_if_empty_int(form.get("size_ss"))
+    size_s = none_if_empty_int(form.get("size_s"))
+    size_m = none_if_empty_int(form.get("size_m"))
+    size_l = none_if_empty_int(form.get("size_l"))
+    size_ll = none_if_empty_int(form.get("size_ll"))
+    size_lll = none_if_empty_int(form.get("size_lll"))
+
+    # ---------- 画像ファイル ----------
     img_front = files.get("design_image_front")
     img_back = files.get("design_image_back")
     img_other = files.get("design_image_other")
 
-    # ★S3にアップロード (upload_file_to_s3) → URLを得る
+    # S3にアップロード → URL取得
     front_url = upload_file_to_s3(img_front, S3_BUCKET_NAME, prefix="uploads/")
     back_url = upload_file_to_s3(img_back, S3_BUCKET_NAME, prefix="uploads/")
     other_url = upload_file_to_s3(img_other, S3_BUCKET_NAME, prefix="uploads/")
@@ -701,32 +700,32 @@ def webform_submit():
             """
             params = (
                 user_id,
-                order_data["application_date"],
-                order_data["delivery_date"],
-                order_data["use_date"],
-                order_data["discount_option"],
-                order_data["school_name"],
-                order_data["line_account"],
-                order_data["group_name"],
-                order_data["school_address"],
-                order_data["school_tel"],
-                order_data["teacher_name"],
-                order_data["teacher_tel"],
-                order_data["teacher_email"],
-                order_data["representative"],
-                order_data["rep_tel"],
-                order_data["rep_email"],
-                order_data["design_confirm"],
-                order_data["payment_method"],
-                order_data["product_name"],
-                order_data["product_color"],
-                order_data["size_ss"],
-                order_data["size_s"],
-                order_data["size_m"],
-                order_data["size_l"],
-                order_data["size_ll"],
-                order_data["size_lll"],
-                front_url,  # 画像URL
+                application_date,
+                delivery_date,
+                use_date,
+                discount_option,
+                school_name,
+                line_account,
+                group_name,
+                school_address,
+                school_tel,
+                teacher_name,
+                teacher_tel,
+                teacher_email,
+                representative,
+                rep_tel,
+                rep_email,
+                design_confirm,
+                payment_method,
+                product_name,
+                product_color,
+                size_ss,
+                size_s,
+                size_m,
+                size_l,
+                size_ll,
+                size_lll,
+                front_url,
                 back_url,
                 other_url
             )
@@ -738,8 +737,8 @@ def webform_submit():
     # フォーム送信完了 → Push通知
     push_text = (
         "WEBフォームの注文を受け付けました！\n"
-        f"学校名: {order_data['school_name']}\n"
-        f"商品名: {order_data['product_name']}\n"
+        f"学校名: {school_name}\n"
+        f"商品名: {product_name}\n"
         "後ほど担当者からご連絡いたします。"
     )
     try:
@@ -751,7 +750,7 @@ def webform_submit():
 
 
 ###################################
-# (N) 例: CSV出力関数 (任意)
+# (O) 例: CSV出力関数 (任意)
 ###################################
 import csv
 
