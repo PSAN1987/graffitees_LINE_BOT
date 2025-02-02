@@ -411,7 +411,7 @@ def handle_postback(event):
     # WEBフォームから注文
     if data == "web_order":
         # ユーザーIDをクエリに付けたURLを案内
-        form_url = f"https://<YOUR_DOMAIN>/webform?user_id={user_id}"
+        form_url = f"https://graffitees-line-bot.onrender.com/webform?user_id={user_id}"
         msg = ("WEBフォームから注文ですね！\n" + f"こちらから入力してください。\n{form_url}")
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=msg))
         return
