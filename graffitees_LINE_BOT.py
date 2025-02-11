@@ -24,7 +24,8 @@ from linebot.models import (
     CarouselContainer,
     BoxComponent,
     TextComponent,
-    ButtonComponent
+    ButtonComponent,
+    ImageMessage
 )
 
 #############################
@@ -45,6 +46,11 @@ DATABASE_USER = os.getenv('DATABASE_USER')
 DATABASE_PASSWORD = os.getenv('DATABASE_PASSWORD')
 DATABASE_HOST = os.getenv('DATABASE_HOST')
 DATABASE_PORT = os.getenv('DATABASE_PORT')
+
+# ▼▼ 追加 (Google Vision, OpenAI用) ▼▼
+GOOGLE_APPLICATION_CREDENTIALS = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+# ▲▲ 追加 ▲▲
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -104,7 +110,7 @@ def upload_file_to_s3(file_storage, s3_bucket, prefix="uploads/"):
     return url
 
 ###################################
-# (E) 価格表と計算ロジック
+# (E) 価格表と計算ロジック (既存)
 ###################################
 PRICE_TABLE = [
     # product,  minQty, maxQty, discountType, unitPrice, addColor, addPosition, addFullColor
@@ -525,8 +531,18 @@ def handle_text_message(event):
         line_bot_api.reply_message(event.reply_token, flex)
         return
 
+    # ▼▼ 追加: 「注文用紙から注文」で写真待ちの状態でテキストを受け取った場合のガード ▼▼
+    if user_id in user_states and user_states[user_id].get("state") == "await_order_form_photo":
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text="注文用紙の写真を送ってください。テキストはまだ受け付けていません。")
+        )
+        return
+    # ▲▲ 追加 ▲▲
+
     if user_id in user_states:
         st = user_states[user_id].get("state")
+        # 以下、既存のステートマシン処理
         if st == "await_school_name":
             user_states[user_id]["school_name"] = user_input
             user_states[user_id]["state"] = "await_prefecture"
@@ -564,10 +580,65 @@ def handle_text_message(event):
         )
         return
 
+    # どのステートでもない通常メッセージ
     line_bot_api.reply_message(
         event.reply_token,
         TextSendMessage(text=f"あなたのメッセージ: {user_input}")
     )
+
+###################################
+# (J') LINEハンドラ: ImageMessage
+#     (注文用紙からの注文で写真をアップロードさせる機能)
+###################################
+@handler.add(MessageEvent, message=ImageMessage)
+def handle_image_message(event):
+    user_id = event.source.user_id
+
+    # 状態が "await_order_form_photo" 以外の場合はスルー
+    if user_id not in user_states or user_states[user_id].get("state") != "await_order_form_photo":
+        return
+
+    # 画像取得
+    message_id = event.message.id
+    message_content = line_bot_api.get_message_content(message_id)
+    
+    # 一時的にローカル保存する
+    temp_filename = f"temp_{user_id}_{message_id}.jpg"
+    with open(temp_filename, "wb") as fd:
+        for chunk in message_content.iter_content():
+            fd.write(chunk)
+
+    # ローカルに保存した画像を使って Google Vision API OCR 処理
+    ocr_text = google_vision_ocr(temp_filename)
+    logger.info(f"[DEBUG] OCR result: {ocr_text}")
+
+    # OpenAI API を呼び出して、webフォーム各項目に対応しそうな値を推定
+    form_estimated_data = openai_extract_form_data(ocr_text)
+    logger.info(f"[DEBUG] form_estimated_data from OpenAI: {form_estimated_data}")
+
+    # 推定結果をユーザーごとの状態に保持しておき、フォーム表示の際に使う
+    user_states[user_id]["paper_form_data"] = form_estimated_data
+    # ステート終了
+    del user_states[user_id]["state"]
+
+    # ユーザーにフォームURLを案内し、修正・送信を促す
+    paper_form_url = f"https://{request.host}/paper_order_form?user_id={user_id}"
+    line_bot_api.reply_message(
+        event.reply_token,
+        TextSendMessage(
+            text=(
+                "注文用紙の写真から情報を読み取りました。\n"
+                "こちらのフォームに自動入力しましたので、内容をご確認・修正の上送信してください。\n"
+                f"{paper_form_url}"
+            )
+        )
+    )
+
+    # ローカルファイル削除(任意)
+    try:
+        os.remove(temp_filename)
+    except Exception:
+        pass
 
 ###################################
 # (K) LINEハンドラ: PostbackEvent
@@ -602,13 +673,19 @@ def handle_postback(event):
         return
 
     if data == "web_order":
-        form_url = f"https://graffitees-line-bot.onrender.com/webform?user_id={user_id}"
+        form_url = f"https://{request.host}/webform?user_id={user_id}"
         msg = (f"WEBフォームから注文ですね！\nこちらから入力してください。\n{form_url}")
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=msg))
         return
 
     if data == "paper_order":
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text="注文用紙から注文は未実装です。"))
+        user_states[user_id] = {
+            "state": "await_order_form_photo"
+        }
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text="注文用紙の写真を送ってください。\n(スマホで撮影したものでもOKです)")
+        )
         return
 
     if user_id not in user_states:
@@ -659,6 +736,8 @@ def handle_postback(event):
             return
 
         user_states[user_id]["color_options"] = data
+
+        # ▼▼ ここで簡易見積結果をまとめ、DBにINSERT + 見積番号発行 ▼▼
         s = user_states[user_id]
         summary = (
             f"学校/団体名: {s['school_name']}\n"
@@ -677,107 +756,365 @@ def handle_postback(event):
         pos = s['print_position']
         color_opt = s['color_options']
         total_price = calc_total_price(product, qty, early_disc, pos, color_opt)
+        
+        # 1枚あたりの単価(ざっくり整数に)
+        if qty > 0:
+            unit_price = total_price // qty
+        else:
+            unit_price = 0
 
+        # 見積番号を発行（例: "Q" + UNIXタイム とか）
+        import time
+        quote_number = f"Q{int(time.time())}"
+
+        # DBにINSERTして保存
+        insert_estimate(
+            user_id,
+            s['school_name'],
+            s['prefecture'],
+            s['early_discount'],
+            s['budget'],
+            product,
+            qty,
+            s['print_position'],
+            color_opt,
+            total_price,
+            unit_price,
+            quote_number
+        )
+
+        # これ以上ステートを追わないので削除
         del user_states[user_id]
+
+        # ▼▼ ユーザーに送るメッセージ(一括)＋モード選択画面 ▼▼
         reply_text = (
             "全項目の入力が完了しました。\n\n" + summary +
             "\n\n--- 見積計算結果 ---\n"
+            f"見積番号: {quote_number}\n"
             f"合計金額: ¥{total_price:,}\n"
-            "（概算です。詳細は別途ご相談ください）"
+            f"1枚あたりの単価: ¥{unit_price:,}\n"
+            "ご注文に進まれる場合はWEBフォームから注文\n"
+            "もしくは注文用紙から注文を選択してください。"
         )
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply_text))
+        # ここで「結果メッセージ + モード選択」をまとめて返信
+        line_bot_api.reply_message(
+            event.reply_token,
+            [
+                TextSendMessage(text=reply_text),
+                create_mode_selection_flex()
+            ]
+        )
         return
 
     line_bot_api.reply_message(event.reply_token, TextSendMessage(text=f"不明なアクション: {data}"))
 
+# ▼▼ 追加: estimatesテーブルにINSERTする関数 ▼▼
+def insert_estimate(
+    user_id,
+    school_name,
+    prefecture,
+    early_discount,
+    budget,
+    product,
+    quantity,
+    print_position,
+    color_options,
+    total_price,
+    unit_price,
+    quote_number
+):
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            sql = """
+            INSERT INTO estimates (
+                user_id,
+                school_name,
+                prefecture,
+                early_discount,
+                budget,
+                product,
+                quantity,
+                print_position,
+                color_options,
+                total_price,
+                unit_price,
+                quote_number,
+                order_placed,
+                reminder_count,
+                created_at
+            ) VALUES (
+                %s, %s, %s, %s, %s,
+                %s, %s, %s, %s, %s,
+                %s, %s, false, 0, NOW()
+            )
+            """
+            params = (
+                user_id,
+                school_name,
+                prefecture,
+                early_discount,
+                budget,
+                product,
+                quantity,
+                print_position,
+                color_options,
+                total_price,
+                unit_price,
+                quote_number
+            )
+            cur.execute(sql, params)
+        conn.commit()
+
 ###################################
-# (L) WEBフォームの実装
+# (L) WEBフォーム (修正)
 ###################################
 FORM_HTML = """
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>WEBフォームから注文</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <style>
+    body {
+      margin: 16px;
+      font-family: sans-serif;
+      font-size: 16px;
+      line-height: 1.5;
+    }
+    h1 {
+      margin-bottom: 24px;
+      font-size: 1.2em;
+    }
+    form {
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    input[type="text"],
+    input[type="number"],
+    input[type="email"],
+    input[type="date"],
+    select,
+    button {
+      display: block;
+      width: 100%;
+      box-sizing: border-box;
+      margin-bottom: 16px;
+      padding: 8px;
+      font-size: 16px;
+    }
+    .radio-group,
+    .checkbox-group {
+      margin-bottom: 16px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .radio-group label,
+    .checkbox-group label {
+      display: flex;
+      align-items: center;
+    }
+    h3 {
+      margin-top: 24px;
+      margin-bottom: 8px;
+      font-size: 1.1em;
+    }
+    p.instruction {
+      font-size: 14px;
+      color: #555;
+    }
+  </style>
 </head>
 <body>
   <h1>WEBフォームから注文</h1>
-  <!-- 画像アップロードに対応するため、enctypeをmultipart/form-data に設定 -->
   <form action="/webform_submit" method="POST" enctype="multipart/form-data">
     <input type="hidden" name="user_id" value="{{ user_id }}" />
 
-    <p>申込日: <input type="date" name="application_date"></p>
-    <p>配達日: <input type="date" name="delivery_date"></p>
-    <p>使用日: <input type="date" name="use_date"></p>
+    <label>申込日:</label>
+    <input type="date" name="application_date">
 
-    <p>利用する学割特典:
-      <select name="discount_option">
-        <option value="早割">早割</option>
-        <option value="タダ割">タダ割</option>
-        <option value="いっしょ割り">いっしょ割り</option>
-      </select>
-    </p>
+    <label>配達日:</label>
+    <input type="date" name="delivery_date">
 
-    <p>学校名: <input type="text" name="school_name"></p>
-    <p>LINEアカウント名: <input type="text" name="line_account"></p>
-    <p>団体名: <input type="text" name="group_name"></p>
-    <p>学校住所: <input type="text" name="school_address"></p>
-    <p>学校TEL: <input type="text" name="school_tel"></p>
-    <p>担任名: <input type="text" name="teacher_name"></p>
-    <p>担任携帯: <input type="text" name="teacher_tel"></p>
-    <p>担任メール: <input type="email" name="teacher_email"></p>
-    <p>代表者: <input type="text" name="representative"></p>
-    <p>代表者TEL: <input type="text" name="rep_tel"></p>
-    <p>代表者メール: <input type="email" name="rep_email"></p>
+    <label>使用日:</label>
+    <input type="date" name="use_date">
 
-    <p>デザイン確認方法:
-      <select name="design_confirm">
-        <option value="LINE代表者">LINE代表者</option>
-        <option value="LINEご担任(保護者)">LINEご担任(保護者)</option>
-        <option value="メール代表者">メール代表者</option>
-        <option value="メールご担任(保護者)">メールご担任(保護者)</option>
-      </select>
-    </p>
+    <label>利用する学割特典:</label>
+    <select name="discount_option">
+      <option value="早割">早割</option>
+      <option value="タダ割">タダ割</option>
+      <option value="いっしょ割り">いっしょ割り</option>
+    </select>
 
-    <p>お支払い方法:
-      <select name="payment_method">
-        <option value="代金引換(ヤマト運輸/現金のみ)">代金引換(ヤマト運輸/現金のみ)</option>
-        <option value="後払い(コンビニ/郵便振替)">後払い(コンビニ/郵便振替)</option>
-        <option value="後払い(銀行振込)">後払い(銀行振込)</option>
-        <option value="先払い(銀行振込)">先払い(銀行振込)</option>
-      </select>
-    </p>
+    <label>学校名:</label>
+    <input type="text" name="school_name">
 
-    <p>商品名:
-      <select name="product_name">
-        <option value="ドライTシャツ">ドライTシャツ</option>
-        <option value="ヘビーウェイトTシャツ">ヘビーウェイトTシャツ</option>
-        <option value="ドライポロシャツ">ドライポロシャツ</option>
-        <option value="ドライメッシュビブス">ドライメッシュビブス</option>
-        <option value="ドライベースボールシャツ">ドライベースボールシャツ</option>
-        <option value="ドライロングスリープTシャツ">ドライロングスリープTシャツ</option>
-        <option value="ドライハーフパンツ">ドライハーフパンツ</option>
-        <option value="ヘビーウェイトロングスリープTシャツ">ヘビーウェイトロングスリープTシャツ</option>
-        <option value="クルーネックライトトレーナー">クルーネックライトトレーナー</option>
-        <option value="フーデッドライトパーカー">フーデッドライトパーカー</option>
-        <option value="スタンダードトレーナー">スタンダードトレーナー</option>
-        <option value="スタンダードWフードパーカー">スタンダードWフードパーカー</option>
-        <option value="ジップアップライトパーカー">ジップアップライトパーカー</option>
-      </select>
-    </p>
-    <p>商品カラー: <input type="text" name="product_color"></p>
-    <p>サイズ(SS): <input type="number" name="size_ss"></p>
-    <p>サイズ(S): <input type="number" name="size_s"></p>
-    <p>サイズ(M): <input type="number" name="size_m"></p>
-    <p>サイズ(L): <input type="number" name="size_l"></p>
-    <p>サイズ(LL): <input type="number" name="size_ll"></p>
-    <p>サイズ(LLL): <input type="number" name="size_lll"></p>
+    <label>LINEアカウント名:</label>
+    <input type="text" name="line_account">
 
-    <p>プリントデザインイメージデータ(前): <input type="file" name="design_image_front"></p>
-    <p>プリントデザインイメージデータ(後): <input type="file" name="design_image_back"></p>
-    <p>プリントデザインイメージデータ(その他): <input type="file" name="design_image_other"></p>
+    <label>団体名:</label>
+    <input type="text" name="group_name">
 
-    <p><button type="submit">送信</button></p>
+    <label>学校住所:</label>
+    <input type="text" name="school_address">
+
+    <label>学校TEL:</label>
+    <input type="text" name="school_tel">
+
+    <label>担任名:</label>
+    <input type="text" name="teacher_name">
+
+    <label>担任携帯:</label>
+    <input type="text" name="teacher_tel">
+
+    <label>担任メール:</label>
+    <input type="email" name="teacher_email">
+
+    <label>代表者:</label>
+    <input type="text" name="representative">
+
+    <label>代表者TEL:</label>
+    <input type="text" name="rep_tel">
+
+    <label>代表者メール:</label>
+    <input type="email" name="rep_email">
+
+    <label>デザイン確認方法:</label>
+    <select name="design_confirm">
+      <option value="LINE代表者">LINE代表者</option>
+      <option value="LINEご担任(保護者)">LINEご担任(保護者)</option>
+      <option value="メール代表者">メール代表者</option>
+      <option value="メールご担任(保護者)">メールご担任(保護者)</option>
+    </select>
+
+    <label>お支払い方法:</label>
+    <select name="payment_method">
+      <option value="代金引換(ヤマト運輸/現金のみ)">代金引換(ヤマト運輸/現金のみ)</option>
+      <option value="後払い(コンビニ/郵便振替)">後払い(コンビニ/郵便振替)</option>
+      <option value="後払い(銀行振込)">後払い(銀行振込)</option>
+      <option value="先払い(銀行振込)">先払い(銀行振込)</option>
+    </select>
+
+    <label>商品名:</label>
+    <select name="product_name">
+      <option value="ドライTシャツ">ドライTシャツ</option>
+      <option value="ヘビーウェイトTシャツ">ヘビーウェイトTシャツ</option>
+      <option value="ドライポロシャツ">ドライポロシャツ</option>
+      <option value="ドライメッシュビブス">ドライメッシュビブス</option>
+      <option value="ドライベースボールシャツ">ドライベースボールシャツ</option>
+      <option value="ドライロングスリープTシャツ">ドライロングスリープTシャツ</option>
+      <option value="ドライハーフパンツ">ドライハーフパンツ</option>
+      <option value="ヘビーウェイトロングスリープTシャツ">ヘビーウェイトロングスリープTシャツ</option>
+      <option value="クルーネックライトトレーナー">クルーネックライトトレーナー</option>
+      <option value="フーデッドライトパーカー">フーデッドライトパーカー</option>
+      <option value="スタンダードトレーナー">スタンダードトレーナー</option>
+      <option value="スタンダードWフードパーカー">スタンダードWフードパーカー</option>
+      <option value="ジップアップライトパーカー">ジップアップライトパーカー</option>
+    </select>
+
+    <label>商品カラー:</label>
+    <input type="text" name="product_color">
+
+    <label>サイズ(SS):</label>
+    <input type="number" name="size_ss">
+
+    <label>サイズ(S):</label>
+    <input type="number" name="size_s">
+
+    <label>サイズ(M):</label>
+    <input type="number" name="size_m">
+
+    <label>サイズ(L):</label>
+    <input type="number" name="size_l">
+
+    <label>サイズ(LL):</label>
+    <input type="number" name="size_ll">
+
+    <label>サイズ(LLL):</label>
+    <input type="number" name="size_lll">
+
+    <h3>プリント位置: 前</h3>
+    <div class="radio-group">
+      <label>
+        <input type="radio" name="print_size_front" value="おまかせ (最大:横28cm x 縦35cm以内)" checked>
+        おまかせ (最大:横28cm x 縦35cm以内)
+      </label>
+      <label>
+        <input type="radio" name="print_size_front" value="custom">
+        ヨコcm x タテcmくらい(入力する):
+      </label>
+    </div>
+    <input type="text" name="print_size_front_custom" placeholder="例: 20cm x 15cm">
+    <label>プリントカラー(前):</label>
+    <input type="text" name="print_color_front" placeholder="全てのカラーをご記入ください。計xx色">
+    <label>フォントNo.(前):</label>
+    <input type="text" name="font_no_front" placeholder="例: X-XX">
+    <label>プリントサンプル(前):</label>
+    <input type="text" name="design_sample_front" placeholder="例: D-XXX">
+
+    <label>プリント位置データ(前): カタログの注文用紙に絵を描いて写真を撮影してアップロードしてください</label>
+    <input type="file" name="position_data_front">
+
+    <h3>プリント位置: 後</h3>
+    <div class="radio-group">
+      <label>
+        <input type="radio" name="print_size_back" value="おまかせ (最大:横28cm x 縦35cm以内)" checked>
+        おまかせ (最大:横28cm x 縦35cm以内)
+      </label>
+      <label>
+        <input type="radio" name="print_size_back" value="custom">
+        ヨコcm x タテcmくらい(入力する):
+      </label>
+    </div>
+    <input type="text" name="print_size_back_custom" placeholder="例: 20cm x 15cm">
+    <label>プリントカラー(後):</label>
+    <input type="text" name="print_color_back" placeholder="全てのカラーをご記入ください。計xx色">
+    <label>フォントNo.(後):</label>
+    <input type="text" name="font_no_back" placeholder="例: X-XX">
+    <label>プリントサンプル(後):</label>
+    <input type="text" name="design_sample_back" placeholder="例: D-XXX">
+
+    <label>プリント位置データ(後): カタログの注文用紙に絵を描いて写真を撮影してアップロードしてください</label>
+    <input type="file" name="position_data_back">
+
+    <h3>プリント位置: その他</h3>
+    <div class="radio-group">
+      <label>
+        <input type="radio" name="print_size_other" value="おまかせ (最大:横28cm x 縦35cm以内)" checked>
+        おまかせ (最大:横28cm x 縦35cm以内)
+      </label>
+      <label>
+        <input type="radio" name="print_size_other" value="custom">
+        ヨコcm x タテcmくらい(入力する):
+      </label>
+    </div>
+    <input type="text" name="print_size_other_custom" placeholder="例: 20cm x 15cm">
+    <label>プリントカラー(その他):</label>
+    <input type="text" name="print_color_other" placeholder="全てのカラーをご記入ください。計xx色">
+    <label>フォントNo.(その他):</label>
+    <input type="text" name="font_no_other" placeholder="例: X-XX">
+    <label>プリントサンプル(その他):</label>
+    <input type="text" name="design_sample_other" placeholder="例: D-XXX">
+
+    <label>プリント位置データ(その他): カタログの注文用紙に絵を描いて写真を撮影してアップロードしてください</label>
+    <input type="file" name="position_data_other">
+
+    <h3>追加のデザインイメージデータ</h3>
+    <p class="instruction">プリント位置(前, 左胸, 右胸, 背中, 左袖, 右袖)を選択し、アップロードできます。</p>
+    <label>プリント位置:</label>
+    <select name="additional_design_position">
+      <option value="">選択してください</option>
+      <option value="前">前</option>
+      <option value="左胸">左胸</option>
+      <option value="右胸">右胸</option>
+      <option value="背中">背中</option>
+      <option value="左袖">左袖</option>
+      <option value="右袖">右袖</option>
+    </select>
+    <label>デザインイメージデータ:</label>
+    <input type="file" name="additional_design_image">
+
+    <button type="submit">送信</button>
   </form>
 </body>
 </html>
@@ -793,12 +1130,12 @@ def show_webform():
 ###################################
 def none_if_empty_str(val: str):
     """文字列入力が空なら None, そうでなければ文字列を返す"""
-    if not val:  # '' or None
+    if not val:
         return None
     return val
 
 def none_if_empty_date(val: str):
-    """日付カラム用: 空なら None、そうでなければそのまま文字列として渡す (Postgresがdate型に変換)"""
+    """日付カラム用: 空なら None、そうでなければそのまま文字列として渡す"""
     if not val:
         return None
     return val
@@ -810,7 +1147,7 @@ def none_if_empty_int(val: str):
     return int(val)
 
 ###################################
-# (N) /webform_submit: フォーム送信受け取り
+# (N) /webform_submit: フォーム送信
 ###################################
 @app.route("/webform_submit", methods=["POST"])
 def webform_submit():
@@ -841,7 +1178,6 @@ def webform_submit():
     product_name = none_if_empty_str(form.get("product_name"))
     product_color = none_if_empty_str(form.get("product_color"))
 
-    # サイズは数値カラムの場合、intかNone
     size_ss = none_if_empty_int(form.get("size_ss"))
     size_s = none_if_empty_int(form.get("size_s"))
     size_m = none_if_empty_int(form.get("size_m"))
@@ -849,17 +1185,42 @@ def webform_submit():
     size_ll = none_if_empty_int(form.get("size_ll"))
     size_lll = none_if_empty_int(form.get("size_lll"))
 
-    # ---------- 画像ファイル ----------
-    img_front = files.get("design_image_front")
-    img_back = files.get("design_image_back")
-    img_other = files.get("design_image_other")
+    # ▼▼ 新規追加項目(前) ▼▼
+    print_size_front = none_if_empty_str(form.get("print_size_front"))
+    print_size_front_custom = none_if_empty_str(form.get("print_size_front_custom"))
+    print_color_front = none_if_empty_str(form.get("print_color_front"))
+    font_no_front = none_if_empty_str(form.get("font_no_front"))
+    design_sample_front = none_if_empty_str(form.get("design_sample_front"))
 
-    # S3にアップロード → URL取得
-    front_url = upload_file_to_s3(img_front, S3_BUCKET_NAME, prefix="uploads/")
-    back_url = upload_file_to_s3(img_back, S3_BUCKET_NAME, prefix="uploads/")
-    other_url = upload_file_to_s3(img_other, S3_BUCKET_NAME, prefix="uploads/")
+    # ▼▼ 新規追加項目(後) ▼▼
+    print_size_back = none_if_empty_str(form.get("print_size_back"))
+    print_size_back_custom = none_if_empty_str(form.get("print_size_back_custom"))
+    print_color_back = none_if_empty_str(form.get("print_color_back"))
+    font_no_back = none_if_empty_str(form.get("font_no_back"))
+    design_sample_back = none_if_empty_str(form.get("design_sample_back"))
 
-    # DBに保存
+    # ▼▼ 新規追加項目(その他) ▼▼
+    print_size_other = none_if_empty_str(form.get("print_size_other"))
+    print_size_other_custom = none_if_empty_str(form.get("print_size_other_custom"))
+    print_color_other = none_if_empty_str(form.get("print_color_other"))
+    font_no_other = none_if_empty_str(form.get("font_no_other"))
+    design_sample_other = none_if_empty_str(form.get("design_sample_other"))
+
+    # ---------- 画像ファイル(位置データ) ----------
+    pos_data_front = files.get("position_data_front")
+    pos_data_back = files.get("position_data_back")
+    pos_data_other = files.get("position_data_other")
+
+    front_url = upload_file_to_s3(pos_data_front, S3_BUCKET_NAME, prefix="uploads/")
+    back_url = upload_file_to_s3(pos_data_back, S3_BUCKET_NAME, prefix="uploads/")
+    other_url = upload_file_to_s3(pos_data_other, S3_BUCKET_NAME, prefix="uploads/")
+
+    # ---------- 追加のデザインイメージデータ ----------
+    additional_design_position = none_if_empty_str(form.get("additional_design_position"))
+    additional_design_image = files.get("additional_design_image")
+    additional_design_image_url = upload_file_to_s3(additional_design_image, S3_BUCKET_NAME, prefix="uploads/")
+
+    # DBに保存 (orders)
     with get_db_connection() as conn:
         with conn.cursor() as cur:
             sql = """
@@ -890,9 +1251,31 @@ def webform_submit():
                 size_l,
                 size_ll,
                 size_lll,
-                design_image_front_url,
-                design_image_back_url,
-                design_image_other_url,
+
+                print_size_front,
+                print_size_front_custom,
+                print_color_front,
+                font_no_front,
+                design_sample_front,
+                position_data_front_url,
+
+                print_size_back,
+                print_size_back_custom,
+                print_color_back,
+                font_no_back,
+                design_sample_back,
+                position_data_back_url,
+
+                print_size_other,
+                print_size_other_custom,
+                print_color_other,
+                font_no_other,
+                design_sample_other,
+                position_data_other_url,
+
+                additional_design_position,
+                additional_design_image_url,
+
                 created_at
             ) VALUES (
                 %s, %s, %s, %s, %s,
@@ -900,7 +1283,18 @@ def webform_submit():
                 %s, %s, %s, %s, %s,
                 %s, %s, %s, %s, %s,
                 %s, %s, %s, %s, %s,
-                %s, %s, %s, %s, NOW()
+                %s,
+
+                %s, %s, %s, %s, %s, %s,
+
+                %s, %s, %s, %s, %s, %s,
+
+                %s, %s, %s, %s, %s, %s,
+
+                %s,
+                %s,
+
+                NOW()
             )
             RETURNING id
             """
@@ -931,14 +1325,38 @@ def webform_submit():
                 size_l,
                 size_ll,
                 size_lll,
+
+                print_size_front,
+                print_size_front_custom,
+                print_color_front,
+                font_no_front,
+                design_sample_front,
                 front_url,
+
+                print_size_back,
+                print_size_back_custom,
+                print_color_back,
+                font_no_back,
+                design_sample_back,
                 back_url,
-                other_url
+
+                print_size_other,
+                print_size_other_custom,
+                print_color_other,
+                font_no_other,
+                design_sample_other,
+                other_url,
+
+                additional_design_position,
+                additional_design_image_url
             )
             cur.execute(sql, params)
             new_id = cur.fetchone()[0]
         conn.commit()
         logger.info(f"Inserted order id={new_id}")
+
+    # 見積→注文へのコンバージョンを示すため、estimatesテーブル側の order_placed = true に更新しておく例
+    mark_estimate_as_ordered(user_id)
 
     # フォーム送信完了 → Push通知
     push_text = (
@@ -954,9 +1372,8 @@ def webform_submit():
 
     return "フォーム送信完了。LINEに通知を送りました。"
 
-
 ###################################
-# (O) 例: CSV出力関数 (任意)
+# (O) 例: CSV出力関数 (任意, 既存)
 ###################################
 import csv
 
@@ -977,7 +1394,658 @@ def export_orders_to_csv():
     logger.info(f"CSV Export Done: {file_path}")
 
 ###################################
-# Flask起動
+# ▼▼ 追加: Google Vision OCR処理
+###################################
+def google_vision_ocr(local_image_path: str) -> str:
+    """
+    Google Cloud Vision APIを用いて画像のOCRを行い、
+    抽出されたテキスト全体を文字列で返すサンプル。
+    """
+    from google.cloud import vision
+
+    client = vision.ImageAnnotatorClient()
+    with open(local_image_path, "rb") as image_file:
+        content = image_file.read()
+    image = vision.Image(content=content)
+
+    response = client.document_text_detection(image=image)
+    if response.error.message:
+        raise Exception(f"Vision API Error: {response.error.message}")
+
+    full_text = response.full_text_annotation.text
+    return full_text
+
+###################################
+# ▼▼ 追加: OpenAIでテキスト解析
+###################################
+import openai
+
+def openai_extract_form_data(ocr_text: str) -> dict:
+    """
+    OCRテキストから注文フォーム項目を推定し、JSONを返す例。
+    （デモ用のため簡易的なプロンプトのみ）
+    """
+    openai.api_key = OPENAI_API_KEY
+
+    system_prompt = """あなたは注文用紙のOCR結果から必要な項目を抽出するアシスタントです。
+    入力として渡されるテキスト（OCR結果）を解析し、次のフォーム項目に合致する値を抽出してJSONで返してください。
+    必ず JSON のみを返し、余計な文章は一切出力しないでください。
+    キー一覧: [
+        "application_date","delivery_date","use_date","discount_option","school_name",
+        "line_account","group_name","school_address","school_tel","teacher_name",
+        "teacher_tel","teacher_email","representative","rep_tel","rep_email",
+        "design_confirm","payment_method","product_name","product_color",
+        "size_ss","size_s","size_m","size_l","size_ll","size_lll",
+        "print_size_front","print_size_front_custom","print_color_front","font_no_front","design_sample_front",
+        "print_size_back","print_size_back_custom","print_color_back","font_no_back","design_sample_back",
+        "print_size_other","print_size_other_custom","print_color_other","font_no_other","design_sample_other"
+    ]
+    （前後のプリント位置やカラー情報など読み取れそうなら適宜含めて構いません）
+    """
+
+    user_prompt = f"""
+以下OCRテキストです:
+{ocr_text}
+上記に基づき、フォーム項目に合致する値をJSONのみで返してください。
+    """
+
+    response = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        temperature=0.2,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ]
+    )
+    content = response["choices"][0]["message"]["content"]
+    logger.info(f"OpenAI raw content: {content}")
+
+    # JSONとしてパースを試みる
+    try:
+        result = json.loads(content)
+    except json.JSONDecodeError:
+        result = {}
+
+    return result
+
+###################################
+# ▼▼ 注文用紙フロー用フォーム
+###################################
+PAPER_FORM_HTML = """
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <style>
+    body {
+      margin: 16px;
+      font-family: sans-serif;
+      font-size: 16px;
+      line-height: 1.5;
+    }
+    h1 {
+      margin-bottom: 24px;
+      font-size: 1.2em;
+    }
+    form {
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    input[type="text"],
+    input[type="number"],
+    input[type="email"],
+    input[type="date"],
+    select,
+    button {
+      display: block;
+      width: 100%;
+      box-sizing: border-box;
+      margin-bottom: 16px;
+      padding: 8px;
+      font-size: 16px;
+    }
+    .radio-group {
+      margin-bottom: 16px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .radio-group label {
+      display: flex;
+      align-items: center;
+    }
+    h3 {
+      margin-top: 24px;
+      margin-bottom: 8px;
+      font-size: 1.1em;
+    }
+    p.instruction {
+      font-size: 14px;
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+  <h1>注文用紙(写真)からの注文</h1>
+  <form action="/paper_order_form_submit" method="POST" enctype="multipart/form-data">
+    <input type="hidden" name="user_id" value="{{ user_id }}" />
+
+    <label>申込日:</label>
+    <input type="date" name="application_date" value="{{ data['application_date'] or '' }}">
+
+    <label>配達日:</label>
+    <input type="date" name="delivery_date" value="{{ data['delivery_date'] or '' }}">
+
+    <label>使用日:</label>
+    <input type="date" name="use_date" value="{{ data['use_date'] or '' }}">
+
+    <label>利用する学割特典:</label>
+    <select name="discount_option">
+      <option value="早割" {% if data['discount_option'] == '早割' %}selected{% endif %}>早割</option>
+      <option value="タダ割" {% if data['discount_option'] == 'タダ割' %}selected{% endif %}>タダ割</option>
+      <option value="いっしょ割り" {% if data['discount_option'] == 'いっしょ割り' %}selected{% endif %}>いっしょ割り</option>
+    </select>
+
+    <label>学校名:</label>
+    <input type="text" name="school_name" value="{{ data['school_name'] or '' }}">
+
+    <label>LINEアカウント名:</label>
+    <input type="text" name="line_account" value="{{ data['line_account'] or '' }}">
+
+    <label>団体名:</label>
+    <input type="text" name="group_name" value="{{ data['group_name'] or '' }}">
+
+    <label>学校住所:</label>
+    <input type="text" name="school_address" value="{{ data['school_address'] or '' }}">
+
+    <label>学校TEL:</label>
+    <input type="text" name="school_tel" value="{{ data['school_tel'] or '' }}">
+
+    <label>担任名:</label>
+    <input type="text" name="teacher_name" value="{{ data['teacher_name'] or '' }}">
+
+    <label>担任携帯:</label>
+    <input type="text" name="teacher_tel" value="{{ data['teacher_tel'] or '' }}">
+
+    <label>担任メール:</label>
+    <input type="email" name="teacher_email" value="{{ data['teacher_email'] or '' }}">
+
+    <label>代表者:</label>
+    <input type="text" name="representative" value="{{ data['representative'] or '' }}">
+
+    <label>代表者TEL:</label>
+    <input type="text" name="rep_tel" value="{{ data['rep_tel'] or '' }}">
+
+    <label>代表者メール:</label>
+    <input type="email" name="rep_email" value="{{ data['rep_email'] or '' }}">
+
+    <label>デザイン確認方法:</label>
+    <select name="design_confirm">
+      <option value="LINE代表者" {% if data['design_confirm'] == 'LINE代表者' %}selected{% endif %}>LINE代表者</option>
+      <option value="LINEご担任(保護者)" {% if data['design_confirm'] == 'LINEご担任(保護者)' %}selected{% endif %}>LINEご担任(保護者)</option>
+      <option value="メール代表者" {% if data['design_confirm'] == 'メール代表者' %}selected{% endif %}>メール代表者</option>
+      <option value="メールご担任(保護者)" {% if data['design_confirm'] == 'メールご担任(保護者)' %}selected{% endif %}>メールご担任(保護者)</option>
+    </select>
+
+    <label>お支払い方法:</label>
+    <select name="payment_method">
+      <option value="代金引換(ヤマト運輸/現金のみ)" {% if data['payment_method'] == '代金引換(ヤマト運輸/現金のみ)' %}selected{% endif %}>代金引換(ヤマト運輸/現金のみ)</option>
+      <option value="後払い(コンビニ/郵便振替)" {% if data['payment_method'] == '後払い(コンビニ/郵便振替)' %}selected{% endif %}>後払い(コンビニ/郵便振替)</option>
+      <option value="後払い(銀行振込)" {% if data['payment_method'] == '後払い(銀行振込)' %}selected{% endif %}>後払い(銀行振込)</option>
+      <option value="先払い(銀行振込)" {% if data['payment_method'] == '先払い(銀行振込)' %}selected{% endif %}>先払い(銀行振込)</option>
+    </select>
+
+    <label>商品名:</label>
+    <select name="product_name">
+      <option value="ドライTシャツ" {% if data['product_name'] == 'ドライTシャツ' %}selected{% endif %}>ドライTシャツ</option>
+      <option value="ヘビーウェイトTシャツ" {% if data['product_name'] == 'ヘビーウェイトTシャツ' %}selected{% endif %}>ヘビーウェイトTシャツ</option>
+      <option value="ドライポロシャツ" {% if data['product_name'] == 'ドライポロシャツ' %}selected{% endif %}>ドライポロシャツ</option>
+      <option value="ドライメッシュビブス" {% if data['product_name'] == 'ドライメッシュビブス' %}selected{% endif %}>ドライメッシュビブス</option>
+      <option value="ドライベースボールシャツ" {% if data['product_name'] == 'ドライベースボールシャツ' %}selected{% endif %}>ドライベースボールシャツ</option>
+      <option value="ドライロングスリープTシャツ" {% if data['product_name'] == 'ドライロングスリープTシャツ' %}selected{% endif %}>ドライロングスリープTシャツ</option>
+      <option value="ドライハーフパンツ" {% if data['product_name'] == 'ドライハーフパンツ' %}selected{% endif %}>ドライハーフパンツ</option>
+      <option value="ヘビーウェイトロングスリープTシャツ" {% if data['product_name'] == 'ヘビーウェイトロングスリープTシャツ' %}selected{% endif %}>ヘビーウェイトロングスリープTシャツ</option>
+      <option value="クルーネックライトトレーナー" {% if data['product_name'] == 'クルーネックライトトレーナー' %}selected{% endif %}>クルーネックライトトレーナー</option>
+      <option value="フーデッドライトパーカー" {% if data['product_name'] == 'フーデッドライトパーカー' %}selected{% endif %}>フーデッドライトパーカー</option>
+      <option value="スタンダードトレーナー" {% if data['product_name'] == 'スタンダードトレーナー' %}selected{% endif %}>スタンダードトレーナー</option>
+      <option value="スタンダードWフードパーカー" {% if data['product_name'] == 'スタンダードWフードパーカー' %}selected{% endif %}>スタンダードWフードパーカー</option>
+      <option value="ジップアップライトパーカー" {% if data['product_name'] == 'ジップアップライトパーカー' %}selected{% endif %}>ジップアップライトパーカー</option>
+    </select>
+
+    <label>商品カラー:</label>
+    <input type="text" name="product_color" value="{{ data['product_color'] or '' }}">
+
+    <label>サイズ(SS):</label>
+    <input type="number" name="size_ss" value="{{ data['size_ss'] or '' }}">
+
+    <label>サイズ(S):</label>
+    <input type="number" name="size_s" value="{{ data['size_s'] or '' }}">
+
+    <label>サイズ(M):</label>
+    <input type="number" name="size_m" value="{{ data['size_m'] or '' }}">
+
+    <label>サイズ(L):</label>
+    <input type="number" name="size_l" value="{{ data['size_l'] or '' }}">
+
+    <label>サイズ(LL):</label>
+    <input type="number" name="size_ll" value="{{ data['size_ll'] or '' }}">
+
+    <label>サイズ(LLL):</label>
+    <input type="number" name="size_lll" value="{{ data['size_lll'] or '' }}">
+
+    <h3>プリント位置: 前</h3>
+    <div class="radio-group">
+      <label>
+        <input type="radio" name="print_size_front" value="おまかせ (最大:横28cm x 縦35cm以内)"
+          {% if data.get('print_size_front') == 'おまかせ (最大:横28cm x 縦35cm以内)' %}checked{% endif %}>
+        おまかせ (最大:横28cm x 縦35cm以内)
+      </label>
+      <label>
+        <input type="radio" name="print_size_front" value="custom"
+          {% if data.get('print_size_front') == 'custom' %}checked{% endif %}>
+        ヨコcm x タテcmくらい(入力する):
+      </label>
+    </div>
+    <input type="text" name="print_size_front_custom" placeholder="例: 20cm x 15cm"
+      value="{{ data.get('print_size_front_custom') or '' }}">
+    <label>プリントカラー(前):</label>
+    <input type="text" name="print_color_front" placeholder="全てのカラーをご記入ください。計xx色"
+      value="{{ data.get('print_color_front') or '' }}">
+    <label>フォントNo.(前):</label>
+    <input type="text" name="font_no_front" placeholder="例: X-XX"
+      value="{{ data.get('font_no_front') or '' }}">
+    <label>プリントサンプル(前):</label>
+    <input type="text" name="design_sample_front" placeholder="例: D-XXX"
+      value="{{ data.get('design_sample_front') or '' }}">
+
+    <label>プリント位置データ(前): カタログの注文用紙に絵を描いて写真を撮影してアップロードしてください</label>
+    <input type="file" name="position_data_front">
+
+    <h3>プリント位置: 後</h3>
+    <div class="radio-group">
+      <label>
+        <input type="radio" name="print_size_back" value="おまかせ (最大:横28cm x 縦35cm以内)"
+          {% if data.get('print_size_back') == 'おまかせ (最大:横28cm x 縦35cm以内)' %}checked{% endif %}>
+        おまかせ (最大:横28cm x 縦35cm以内)
+      </label>
+      <label>
+        <input type="radio" name="print_size_back" value="custom"
+          {% if data.get('print_size_back') == 'custom' %}checked{% endif %}>
+        ヨコcm x タテcmくらい(入力する):
+      </label>
+    </div>
+    <input type="text" name="print_size_back_custom" placeholder="例: 20cm x 15cm"
+      value="{{ data.get('print_size_back_custom') or '' }}">
+    <label>プリントカラー(後):</label>
+    <input type="text" name="print_color_back" placeholder="全てのカラーをご記入ください。計xx色"
+      value="{{ data.get('print_color_back') or '' }}">
+    <label>フォントNo.(後):</label>
+    <input type="text" name="font_no_back" placeholder="例: X-XX"
+      value="{{ data.get('font_no_back') or '' }}">
+    <label>プリントサンプル(後):</label>
+    <input type="text" name="design_sample_back" placeholder="例: D-XXX"
+      value="{{ data.get('design_sample_back') or '' }}">
+
+    <label>プリント位置データ(後): カタログの注文用紙に絵を描いて写真を撮影してアップロードしてください</label>
+    <input type="file" name="position_data_back">
+
+    <h3>プリント位置: その他</h3>
+    <div class="radio-group">
+      <label>
+        <input type="radio" name="print_size_other" value="おまかせ (最大:横28cm x 縦35cm以内)"
+          {% if data.get('print_size_other') == 'おまかせ (最大:横28cm x 縦35cm以内)' %}checked{% endif %}>
+        おまかせ (最大:横28cm x 縦35cm以内)
+      </label>
+      <label>
+        <input type="radio" name="print_size_other" value="custom"
+          {% if data.get('print_size_other') == 'custom' %}checked{% endif %}>
+        ヨコcm x タテcmくらい(入力する):
+      </label>
+    </div>
+    <input type="text" name="print_size_other_custom" placeholder="例: 20cm x 15cm"
+      value="{{ data.get('print_size_other_custom') or '' }}">
+    <label>プリントカラー(その他):</label>
+    <input type="text" name="print_color_other" placeholder="全てのカラーをご記入ください。計xx色"
+      value="{{ data.get('print_color_other') or '' }}">
+    <label>フォントNo.(その他):</label>
+    <input type="text" name="font_no_other" placeholder="例: X-XX"
+      value="{{ data.get('font_no_other') or '' }}">
+    <label>プリントサンプル(その他):</label>
+    <input type="text" name="design_sample_other" placeholder="例: D-XXX"
+      value="{{ data.get('design_sample_other') or '' }}">
+
+    <label>プリント位置データ(その他): カタログの注文用紙に絵を描いて写真を撮影してアップロードしてください</label>
+    <input type="file" name="position_data_other">
+
+    <h3>追加のデザインイメージデータ</h3>
+    <p class="instruction">プリント位置(前, 左胸, 右胸, 背中, 左袖, 右袖)を選択し、アップロードできます。</p>
+    <label>プリント位置:</label>
+    <select name="additional_design_position">
+      <option value="">選択してください</option>
+      <option value="前">前</option>
+      <option value="左胸">左胸</option>
+      <option value="右胸">右胸</option>
+      <option value="背中">背中</option>
+      <option value="左袖">左袖</option>
+      <option value="右袖">右袖</option>
+    </select>
+    <label>デザインイメージデータ:</label>
+    <input type="file" name="additional_design_image">
+
+    <button type="submit">送信</button>
+  </form>
+</body>
+</html>
+"""
+
+@app.route("/paper_order_form", methods=["GET"])
+def paper_order_form():
+    user_id = request.args.get("user_id", "")
+    guessed_data = {}
+    if user_id in user_states and "paper_form_data" in user_states[user_id]:
+        guessed_data = user_states[user_id]["paper_form_data"]
+    return render_template_string(PAPER_FORM_HTML, user_id=user_id, data=guessed_data)
+
+###################################
+# ▼▼ 紙の注文用フォーム送信
+###################################
+@app.route("/paper_order_form_submit", methods=["POST"])
+def paper_order_form_submit():
+    form = request.form
+    files = request.files
+    user_id = form.get("user_id", "")
+
+    application_date = none_if_empty_date(form.get("application_date"))
+    delivery_date = none_if_empty_date(form.get("delivery_date"))
+    use_date = none_if_empty_date(form.get("use_date"))
+
+    discount_option = none_if_empty_str(form.get("discount_option"))
+    school_name = none_if_empty_str(form.get("school_name"))
+    line_account = none_if_empty_str(form.get("line_account"))
+    group_name = none_if_empty_str(form.get("group_name"))
+    school_address = none_if_empty_str(form.get("school_address"))
+    school_tel = none_if_empty_str(form.get("school_tel"))
+    teacher_name = none_if_empty_str(form.get("teacher_name"))
+    teacher_tel = none_if_empty_str(form.get("teacher_tel"))
+    teacher_email = none_if_empty_str(form.get("teacher_email"))
+    representative = none_if_empty_str(form.get("representative"))
+    rep_tel = none_if_empty_str(form.get("rep_tel"))
+    rep_email = none_if_empty_str(form.get("rep_email"))
+
+    design_confirm = none_if_empty_str(form.get("design_confirm"))
+    payment_method = none_if_empty_str(form.get("payment_method"))
+    product_name = none_if_empty_str(form.get("product_name"))
+    product_color = none_if_empty_str(form.get("product_color"))
+
+    size_ss = none_if_empty_int(form.get("size_ss"))
+    size_s = none_if_empty_int(form.get("size_s"))
+    size_m = none_if_empty_int(form.get("size_m"))
+    size_l = none_if_empty_int(form.get("size_l"))
+    size_ll = none_if_empty_int(form.get("size_ll"))
+    size_lll = none_if_empty_int(form.get("size_lll"))
+
+    print_size_front = none_if_empty_str(form.get("print_size_front"))
+    print_size_front_custom = none_if_empty_str(form.get("print_size_front_custom"))
+    print_color_front = none_if_empty_str(form.get("print_color_front"))
+    font_no_front = none_if_empty_str(form.get("font_no_front"))
+    design_sample_front = none_if_empty_str(form.get("design_sample_front"))
+
+    print_size_back = none_if_empty_str(form.get("print_size_back"))
+    print_size_back_custom = none_if_empty_str(form.get("print_size_back_custom"))
+    print_color_back = none_if_empty_str(form.get("print_color_back"))
+    font_no_back = none_if_empty_str(form.get("font_no_back"))
+    design_sample_back = none_if_empty_str(form.get("design_sample_back"))
+
+    print_size_other = none_if_empty_str(form.get("print_size_other"))
+    print_size_other_custom = none_if_empty_str(form.get("print_size_other_custom"))
+    print_color_other = none_if_empty_str(form.get("print_color_other"))
+    font_no_other = none_if_empty_str(form.get("font_no_other"))
+    design_sample_other = none_if_empty_str(form.get("design_sample_other"))
+
+    # 位置データ(前/後/その他)
+    pos_data_front = files.get("position_data_front")
+    pos_data_back = files.get("position_data_back")
+    pos_data_other = files.get("position_data_other")
+
+    front_url = upload_file_to_s3(pos_data_front, S3_BUCKET_NAME, prefix="uploads/")
+    back_url = upload_file_to_s3(pos_data_back, S3_BUCKET_NAME, prefix="uploads/")
+    other_url = upload_file_to_s3(pos_data_other, S3_BUCKET_NAME, prefix="uploads/")
+
+    # 追加のデザインイメージ
+    additional_design_position = none_if_empty_str(form.get("additional_design_position"))
+    additional_design_image = files.get("additional_design_image")
+    additional_design_image_url = upload_file_to_s3(additional_design_image, S3_BUCKET_NAME, prefix="uploads/")
+
+    # DBに保存 (orders)
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            sql = """
+            INSERT INTO orders (
+                user_id,
+                application_date,
+                delivery_date,
+                use_date,
+                discount_option,
+                school_name,
+                line_account,
+                group_name,
+                school_address,
+                school_tel,
+                teacher_name,
+                teacher_tel,
+                teacher_email,
+                representative,
+                rep_tel,
+                rep_email,
+                design_confirm,
+                payment_method,
+                product_name,
+                product_color,
+                size_ss,
+                size_s,
+                size_m,
+                size_l,
+                size_ll,
+                size_lll,
+
+                print_size_front,
+                print_size_front_custom,
+                print_color_front,
+                font_no_front,
+                design_sample_front,
+                position_data_front_url,
+
+                print_size_back,
+                print_size_back_custom,
+                print_color_back,
+                font_no_back,
+                design_sample_back,
+                position_data_back_url,
+
+                print_size_other,
+                print_size_other_custom,
+                print_color_other,
+                font_no_other,
+                design_sample_other,
+                position_data_other_url,
+
+                additional_design_position,
+                additional_design_image_url,
+
+                created_at
+            ) VALUES (
+                %s, %s, %s, %s, %s,
+                %s, %s, %s, %s, %s,
+                %s, %s, %s, %s, %s,
+                %s, %s, %s, %s, %s,
+                %s, %s, %s, %s, %s,
+                %s,
+
+                %s, %s, %s, %s, %s, %s,
+
+                %s, %s, %s, %s, %s, %s,
+
+                %s, %s, %s, %s, %s, %s,
+
+                %s,
+                %s,
+
+                NOW()
+            )
+            RETURNING id
+            """
+            params = (
+                user_id,
+                application_date,
+                delivery_date,
+                use_date,
+                discount_option,
+                school_name,
+                line_account,
+                group_name,
+                school_address,
+                school_tel,
+                teacher_name,
+                teacher_tel,
+                teacher_email,
+                representative,
+                rep_tel,
+                rep_email,
+                design_confirm,
+                payment_method,
+                product_name,
+                product_color,
+                size_ss,
+                size_s,
+                size_m,
+                size_l,
+                size_ll,
+                size_lll,
+
+                print_size_front,
+                print_size_front_custom,
+                print_color_front,
+                font_no_front,
+                design_sample_front,
+                front_url,
+
+                print_size_back,
+                print_size_back_custom,
+                print_color_back,
+                font_no_back,
+                design_sample_back,
+                back_url,
+
+                print_size_other,
+                print_size_other_custom,
+                print_color_other,
+                font_no_other,
+                design_sample_other,
+                other_url,
+
+                additional_design_position,
+                additional_design_image_url
+            )
+            cur.execute(sql, params)
+            new_id = cur.fetchone()[0]
+        conn.commit()
+        logger.info(f"Inserted paper_order id={new_id}")
+
+    # 見積→注文へのコンバージョンを示すため、estimatesテーブル側の order_placed = true に更新
+    mark_estimate_as_ordered(user_id)
+
+    push_text = (
+        "注文用紙(写真)からの注文を受け付けました！\n"
+        f"学校名: {school_name}\n"
+        f"商品名: {product_name}\n"
+        "後ほど担当者からご連絡いたします。"
+    )
+    try:
+        line_bot_api.push_message(to=user_id, messages=TextSendMessage(text=push_text))
+    except Exception as e:
+        logger.error(f"Push message failed: {e}")
+
+    return "紙の注文フォーム送信完了。LINEに通知を送りました。"
+
+# ▼▼ 簡易見積→注文へのコンバージョンがあった場合に estimates.order_placed を true にする関数 ▼▼
+def mark_estimate_as_ordered(user_id):
+    """
+    同一user_idで未注文のestimateがあれば order_placed=true に更新するサンプル。
+    実際は見積番号単位で管理するなど状況次第。
+    """
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            sql = """
+            UPDATE estimates
+               SET order_placed = true
+             WHERE user_id = %s
+               AND order_placed = false
+            """
+            cur.execute(sql, (user_id,))
+        conn.commit()
+
+###################################
+# ▼▼ 24時間ごとにリマインドを送るデモ
+###################################
+@app.route("/send_reminders", methods=["GET"])
+def send_reminders():
+    """
+    24時間経過しても注文されていない簡易見積ユーザーにリマインドを送る。
+    2回まで送信したら打ち切り。
+    ※ 実運用ではcronなどで1日1回このエンドポイントを叩くイメージ
+    """
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            # 24時間前より古いestimateで、order_placed=false、reminder_count<2
+            sql = """
+            SELECT id, user_id, quote_number, total_price
+              FROM estimates
+             WHERE order_placed = false
+               AND reminder_count < 2
+               AND created_at < (NOW() - INTERVAL '24 hours')
+            """
+            cur.execute(sql)
+            rows = cur.fetchall()
+
+            for (est_id, user_id, quote_number, total_price) in rows:
+                # リマインドメッセージ送信
+                reminder_text = (
+                    f"【リマインド】\n"
+                    f"先日の簡易見積（見積番号: {quote_number}）\n"
+                    f"合計金額: ¥{total_price:,}\n"
+                    "ご注文はお済みでしょうか？\n"
+                    "ご検討中の場合は、WEBフォーム or 注文用紙からいつでもお申し込みください。"
+                )
+                try:
+                    # リマインド通知
+                    line_bot_api.push_message(
+                        to=user_id,
+                        messages=TextSendMessage(text=reminder_text)
+                    )
+                    # リマインド後、すぐモード選択を案内
+                    line_bot_api.push_message(
+                        to=user_id,
+                        messages=[create_mode_selection_flex()]
+                    )
+
+                    # reminder_countを+1
+                    cur2 = conn.cursor()
+                    cur2.execute(
+                        "UPDATE estimates SET reminder_count = reminder_count + 1 WHERE id = %s",
+                        (est_id,)
+                    )
+                    cur2.close()
+                    logger.info(f"Sent reminder to user_id={user_id}, estimate_id={est_id}")
+                except Exception as e:
+                    logger.error(f"Push reminder failed for user_id={user_id}: {e}")
+
+        conn.commit()
+
+    return "リマインド送信完了"
+
+###################################
+# Flask起動 (既存)
 ###################################
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8000, debug=True)
