@@ -1,4 +1,5 @@
 ﻿import os
+import time
 import psycopg2
 import requests
 from dotenv import load_dotenv
@@ -6,6 +7,8 @@ from flask import Flask, request, abort, render_template_string
 import logging
 import traceback
 import json
+os.environ['TZ'] = 'Asia/Tokyo'
+time.tzset()
 
 # ★ line-bot-sdk v2 系 ★
 from linebot import (
