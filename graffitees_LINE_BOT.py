@@ -1996,13 +1996,12 @@ import datetime
 
 @app.route("/send_reminders", methods=["GET"])
 def send_reminders():
-    logger.info("[DEBUG] /send_reminders endpoint called!")
     """
-    作成から30秒以上経過した見積をリマインドする例。
+    作成から30秒以上たっていない(=30秒未満) の見積をリマインド。
     reminder_count < 2 のレコードだけ対象。
-    今回は Python 側の時刻を UTC+9 (JST相当) で扱う。
+    Python 側の時刻を UTC+9 (JST相当) で扱う例。
     """
-    # UTC+9 のタイムゾーンオブジェクトを作る
+    # UTC+9 のタイムゾーンオブジェクト
     UTC9 = datetime.timezone(datetime.timedelta(hours=9))
 
     # 「今から30秒前」を Python側で計算 (UTC+9ベース)
@@ -2010,8 +2009,7 @@ def send_reminders():
 
     with get_db_connection() as conn:
         with conn.cursor() as cur:
-            # order_placed=false & reminder_count<2 のレコードを全件取得し、
-            # Python側で "作成から30秒経ったか" を判定
+            # order_placed=false & reminder_count<2 のレコードを全件取得
             sql = """
             SELECT id, user_id, quote_number, total_price, created_at
               FROM estimates
@@ -2020,21 +2018,20 @@ def send_reminders():
             """
             cur.execute(sql)
             rows = cur.fetchall()
-            logger.info(f"[DEBUG] rows fetched: {len(rows)}")
 
             for (est_id, user_id, quote_number, total_price, created_at) in rows:
-                # DBが TIMESTAMP WITHOUT TIME ZONE の場合、tzinfo が None のため "UTC+9" として再設定
+                # DBが TIMESTAMP WITHOUT TIME ZONE の場合、tzinfo が None
                 if created_at.tzinfo is None:
+                    # JSTとして扱う
                     created_at = created_at.replace(tzinfo=UTC9)
 
-                # 30秒以上前に作成されたらリマインド対象
-                if created_at < threshold:
+                # 「created_at > threshold」 ⇒ 作成から30秒未満の場合
+                if created_at > threshold:
                     reminder_text = (
                         f"【リマインド】\n"
-                        f"先日の簡易見積（見積番号: {quote_number}）\n"
+                        f"先ほどの簡易見積（見積番号: {quote_number}）\n"
                         f"合計金額: ¥{total_price:,}\n"
-                        "ご注文はお済みでしょうか？\n"
-                        "ご検討中の場合は、WEBフォーム or 注文用紙からいつでもお申し込みください。"
+                        "作成から30秒以内ですがご確認ください。"
                     )
                     try:
                         # リマインド通知
