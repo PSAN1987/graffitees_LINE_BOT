@@ -1429,6 +1429,7 @@ def openai_extract_form_data(ocr_text: str) -> dict:
 
     system_prompt = """あなたは注文用紙のOCR結果から必要な項目を抽出するアシスタントです。
     入力として渡されるテキスト（OCR結果）を解析し、次のフォーム項目に合致する値を抽出してJSONで返してください。
+    日付項目（application_date, delivery_date, use_date）は必ず YYYY-MM-DD の形式で返してください
     必ず JSON のみを返し、余計な文章は一切出力しないでください。
     キー一覧: [
         "application_date","delivery_date","use_date","discount_option","school_name",
