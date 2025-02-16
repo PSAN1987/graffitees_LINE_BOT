@@ -1992,23 +1992,19 @@ def mark_estimate_as_ordered(user_id):
 ###################################
 # ▼▼ 24時間ごとにリマインドを送るデモ
 ###################################
-import datetime
-
 @app.route("/send_reminders", methods=["GET"])
 def send_reminders():
     """
-    サーバー時刻とDB時刻がズレていても動作するよう、
-    Python側の現在時刻(datetime.now())と created_at の差分を比較してリマインドを行う。
-    ここではテスト用に「作成から10秒以上経過したらリマインド」を例示。
+    作成から30秒以上経過した見積をリマインドする例。
     reminder_count < 2 のレコードだけ対象。
     """
-    # まず「今から10秒前」をPython側で計算
-    threshold = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(seconds=10)
+    # 「今から30秒前」をPython側で計算 (UTCベース)
+    threshold = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(seconds=30)
 
     with get_db_connection() as conn:
         with conn.cursor() as cur:
-            # order_placed=false かつ reminder_count<2 のレコードを抽出
-            # created_at でフィルタせず全件取得し、Python側で時間差を判定
+            # order_placed=false & reminder_count<2 のレコードを全件取得し、
+            # Python側で "作成から30秒経ったか" を判定
             sql = """
             SELECT id, user_id, quote_number, total_price, created_at
               FROM estimates
@@ -2019,18 +2015,12 @@ def send_reminders():
             rows = cur.fetchall()
 
             for (est_id, user_id, quote_number, total_price, created_at) in rows:
-                # created_at が Python の datetime オブジェクトとして取得される想定
-                # DBのカラム型が TIMESTAMP なら tz情報が付いていない場合もあるので注意
-                # もし TIMESTAMP WITHOUT TIME ZONE なら、created_at を UTC想定で処理するなど調整が必要
-
-                # Python現在時刻との「経過秒数」を計算
-                # ここでは created_at をUTCに合わせたうえで比較する例
+                # DBが TIMESTAMP WITHOUT TIME ZONE の場合、tzinfo が None のため UTC として再設定
                 if created_at.tzinfo is None:
-                    # DBがタイムゾーンなしTIMESTAMPの場合、とりあえずUTC想定にする
                     created_at = created_at.replace(tzinfo=datetime.timezone.utc)
 
+                # 30秒以上前に作成されたらリマインド対象
                 if created_at < threshold:
-                    # ここで「(作成時刻)が(今-10秒)よりも前」、つまり10秒以上前に作られた注文をリマインド対象
                     reminder_text = (
                         f"【リマインド】\n"
                         f"先日の簡易見積（見積番号: {quote_number}）\n"
@@ -2051,17 +2041,15 @@ def send_reminders():
                         )
 
                         # reminder_countを+1
-                        cur2 = conn.cursor()
-                        cur2.execute(
-                            "UPDATE estimates SET reminder_count = reminder_count + 1 WHERE id = %s",
-                            (est_id,)
-                        )
-                        cur2.close()
-                        logger.info(f"Sent reminder to user_id={user_id}, estimate_id={est_id}")
+                        with conn.cursor() as cur2:
+                            cur2.execute(
+                                "UPDATE estimates SET reminder_count = reminder_count + 1 WHERE id = %s",
+                                (est_id,)
+                            )
+                        conn.commit()
+
                     except Exception as e:
                         logger.error(f"Push reminder failed for user_id={user_id}: {e}")
-
-        conn.commit()
 
     return "リマインド送信完了"
 
