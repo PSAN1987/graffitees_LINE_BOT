@@ -1995,6 +1995,9 @@ def mark_estimate_as_ordered(user_id):
 import datetime
 
 @app.route("/send_reminders", methods=["GET"])
+import datetime
+
+@app.route("/send_reminders", methods=["GET"])
 def send_reminders():
     """
     作成から30秒以上たっていない(=30秒未満) の見積をリマインド。
@@ -2057,6 +2060,7 @@ def send_reminders():
                         logger.error(f"Push reminder failed for user_id={user_id}: {e}")
 
     return "リマインド送信完了"
+
 
 
 
