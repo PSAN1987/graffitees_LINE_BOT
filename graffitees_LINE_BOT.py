@@ -1989,61 +1989,79 @@ def mark_estimate_as_ordered(user_id):
 ###################################
 # ▼▼ 24時間ごとにリマインドを送るデモ
 ###################################
+import datetime
+
 @app.route("/send_reminders", methods=["GET"])
 def send_reminders():
     """
-    24時間経過しても注文されていない簡易見積ユーザーにリマインドを送る。
-    2回まで送信したら打ち切り。
-    ※ 実運用ではcronなどで1日1回このエンドポイントを叩くイメージ
+    サーバー時刻とDB時刻がズレていても動作するよう、
+    Python側の現在時刻(datetime.now())と created_at の差分を比較してリマインドを行う。
+    ここではテスト用に「作成から10秒以上経過したらリマインド」を例示。
+    reminder_count < 2 のレコードだけ対象。
     """
+    # まず「今から10秒前」をPython側で計算
+    threshold = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(seconds=10)
+
     with get_db_connection() as conn:
         with conn.cursor() as cur:
-            # 24時間前より古いestimateで、order_placed=false、reminder_count<2
+            # order_placed=false かつ reminder_count<2 のレコードを抽出
+            # created_at でフィルタせず全件取得し、Python側で時間差を判定
             sql = """
-            SELECT id, user_id, quote_number, total_price
+            SELECT id, user_id, quote_number, total_price, created_at
               FROM estimates
              WHERE order_placed = false
                AND reminder_count < 2
-               AND created_at < (NOW() - INTERVAL '30 seconds')
             """
             cur.execute(sql)
             rows = cur.fetchall()
 
-            for (est_id, user_id, quote_number, total_price) in rows:
-                # リマインドメッセージ送信
-                reminder_text = (
-                    f"【リマインド】\n"
-                    f"先日の簡易見積（見積番号: {quote_number}）\n"
-                    f"合計金額: ¥{total_price:,}\n"
-                    "ご注文はお済みでしょうか？\n"
-                    "ご検討中の場合は、WEBフォーム or 注文用紙からいつでもお申し込みください。"
-                )
-                try:
-                    # リマインド通知
-                    line_bot_api.push_message(
-                        to=user_id,
-                        messages=TextSendMessage(text=reminder_text)
-                    )
-                    # リマインド後、すぐモード選択を案内
-                    line_bot_api.push_message(
-                        to=user_id,
-                        messages=[create_mode_selection_flex()]
-                    )
+            for (est_id, user_id, quote_number, total_price, created_at) in rows:
+                # created_at が Python の datetime オブジェクトとして取得される想定
+                # DBのカラム型が TIMESTAMP なら tz情報が付いていない場合もあるので注意
+                # もし TIMESTAMP WITHOUT TIME ZONE なら、created_at を UTC想定で処理するなど調整が必要
 
-                    # reminder_countを+1
-                    cur2 = conn.cursor()
-                    cur2.execute(
-                        "UPDATE estimates SET reminder_count = reminder_count + 1 WHERE id = %s",
-                        (est_id,)
+                # Python現在時刻との「経過秒数」を計算
+                # ここでは created_at をUTCに合わせたうえで比較する例
+                if created_at.tzinfo is None:
+                    # DBがタイムゾーンなしTIMESTAMPの場合、とりあえずUTC想定にする
+                    created_at = created_at.replace(tzinfo=datetime.timezone.utc)
+
+                if created_at < threshold:
+                    # ここで「(作成時刻)が(今-10秒)よりも前」、つまり10秒以上前に作られた注文をリマインド対象
+                    reminder_text = (
+                        f"【リマインド】\n"
+                        f"先日の簡易見積（見積番号: {quote_number}）\n"
+                        f"合計金額: ¥{total_price:,}\n"
+                        "ご注文はお済みでしょうか？\n"
+                        "ご検討中の場合は、WEBフォーム or 注文用紙からいつでもお申し込みください。"
                     )
-                    cur2.close()
-                    logger.info(f"Sent reminder to user_id={user_id}, estimate_id={est_id}")
-                except Exception as e:
-                    logger.error(f"Push reminder failed for user_id={user_id}: {e}")
+                    try:
+                        # リマインド通知
+                        line_bot_api.push_message(
+                            to=user_id,
+                            messages=TextSendMessage(text=reminder_text)
+                        )
+                        # リマインド後、すぐモード選択を案内
+                        line_bot_api.push_message(
+                            to=user_id,
+                            messages=[create_mode_selection_flex()]
+                        )
+
+                        # reminder_countを+1
+                        cur2 = conn.cursor()
+                        cur2.execute(
+                            "UPDATE estimates SET reminder_count = reminder_count + 1 WHERE id = %s",
+                            (est_id,)
+                        )
+                        cur2.close()
+                        logger.info(f"Sent reminder to user_id={user_id}, estimate_id={est_id}")
+                    except Exception as e:
+                        logger.error(f"Push reminder failed for user_id={user_id}: {e}")
 
         conn.commit()
 
     return "リマインド送信完了"
+
 
 ###################################
 # Flask起動 (既存)
