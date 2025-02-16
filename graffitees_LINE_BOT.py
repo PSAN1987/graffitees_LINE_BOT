@@ -1992,6 +1992,8 @@ def mark_estimate_as_ordered(user_id):
 ###################################
 # ▼▼ 24時間ごとにリマインドを送るデモ
 ###################################
+import datetime
+
 @app.route("/send_reminders", methods=["GET"])
 def send_reminders():
     """
@@ -2015,6 +2017,8 @@ def send_reminders():
             rows = cur.fetchall()
 
             for (est_id, user_id, quote_number, total_price, created_at) in rows:
+                logger.info(f"[DEBUG] estimate_id={est_id}, user_id={user_id}, created_at={created_at}")
+                logger.info(f"[DEBUG] threshold={threshold}, created_at< threshold? -> {created_at < threshold}")
                 # DBが TIMESTAMP WITHOUT TIME ZONE の場合、tzinfo が None のため UTC として再設定
                 if created_at.tzinfo is None:
                     created_at = created_at.replace(tzinfo=datetime.timezone.utc)
