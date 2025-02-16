@@ -1996,6 +1996,7 @@ import datetime
 
 @app.route("/send_reminders", methods=["GET"])
 def send_reminders():
+    logger.info("[DEBUG] /send_reminders endpoint called!")
     """
     作成から30秒以上経過した見積をリマインドする例。
     reminder_count < 2 のレコードだけ対象。
@@ -2019,6 +2020,7 @@ def send_reminders():
             """
             cur.execute(sql)
             rows = cur.fetchall()
+            logger.info(f"[DEBUG] rows fetched: {len(rows)}")
 
             for (est_id, user_id, quote_number, total_price, created_at) in rows:
                 # DBが TIMESTAMP WITHOUT TIME ZONE の場合、tzinfo が None のため "UTC+9" として再設定
