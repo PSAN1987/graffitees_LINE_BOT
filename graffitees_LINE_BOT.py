@@ -1995,24 +1995,22 @@ def mark_estimate_as_ordered(user_id):
 import datetime
 
 @app.route("/send_reminders", methods=["GET"])
-import datetime
-
-@app.route("/send_reminders", methods=["GET"])
 def send_reminders():
     """
-    作成から30秒以上たっていない(=30秒未満) の見積をリマインド。
-    reminder_count < 2 のレコードだけ対象。
-    Python 側の時刻を UTC+9 (JST相当) で扱う例。
+    作成から30秒以上経過した (order_placed=false, reminder_count<2) の見積をリマインドする。
+    Python側の時刻を UTC+9 (JST) として扱い、ログ出力を行う。
     """
+    logger.info("[DEBUG] /send_reminders endpoint called.")
+
     # UTC+9 のタイムゾーンオブジェクト
     UTC9 = datetime.timezone(datetime.timedelta(hours=9))
-
-    # 「今から30秒前」を Python側で計算 (UTC+9ベース)
+    # 「今から30秒前」を JST で計算
     threshold = datetime.datetime.now(UTC9) - datetime.timedelta(seconds=30)
+    logger.info(f"[DEBUG] threshold (30秒前) = {threshold}")
 
     with get_db_connection() as conn:
         with conn.cursor() as cur:
-            # order_placed=false & reminder_count<2 のレコードを全件取得
+            # order_placed=false & reminder_count<2 の見積を全件取得
             sql = """
             SELECT id, user_id, quote_number, total_price, created_at
               FROM estimates
@@ -2022,20 +2020,30 @@ def send_reminders():
             cur.execute(sql)
             rows = cur.fetchall()
 
+            logger.info(f"[DEBUG] fetched {len(rows)} rows from estimates for reminder check.")
+
             for (est_id, user_id, quote_number, total_price, created_at) in rows:
                 # DBが TIMESTAMP WITHOUT TIME ZONE の場合、tzinfo が None
                 if created_at.tzinfo is None:
-                    # JSTとして扱う
                     created_at = created_at.replace(tzinfo=UTC9)
 
-                # 「created_at > threshold」 ⇒ 作成から30秒未満の場合
-                if created_at > threshold:
+                logger.info(
+                    f"[DEBUG] Checking estimate_id={est_id}, created_at={created_at}, quote_number={quote_number}"
+                )
+
+                # 「created_at < threshold」 → “作成から30秒以上 経過” とみなす
+                if created_at < threshold:
+                    logger.info(
+                        f"[DEBUG] estimate_id={est_id} is older than 30 seconds; sending reminder."
+                    )
+
                     reminder_text = (
                         f"【リマインド】\n"
-                        f"先ほどの簡易見積（見積番号: {quote_number}）\n"
+                        f"簡易見積（見積番号: {quote_number}）\n"
                         f"合計金額: ¥{total_price:,}\n"
-                        "作成から30秒以内ですがご確認ください。"
+                        "作成から30秒以上経過しました。ご注文はお済みでしょうか？"
                     )
+
                     try:
                         # リマインド通知
                         line_bot_api.push_message(
@@ -2056,12 +2064,15 @@ def send_reminders():
                             )
                         conn.commit()
 
+                        logger.info(f"[DEBUG] Sent reminder and updated reminder_count for estimate_id={est_id}")
                     except Exception as e:
-                        logger.error(f"Push reminder failed for user_id={user_id}: {e}")
+                        logger.error(f"Push reminder failed for user_id={user_id}, estimate_id={est_id}: {e}")
+                else:
+                    logger.info(
+                        f"[DEBUG] estimate_id={est_id} is NOT older than 30 seconds; skipping."
+                    )
 
     return "リマインド送信完了"
-
-
 
 
 ###################################
