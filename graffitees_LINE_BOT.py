@@ -1999,9 +1999,13 @@ def send_reminders():
     """
     作成から30秒以上経過した見積をリマインドする例。
     reminder_count < 2 のレコードだけ対象。
+    今回は Python 側の時刻を UTC+9 (JST相当) で扱う。
     """
-    # 「今から30秒前」をPython側で計算 (UTCベース)
-    threshold = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(seconds=30)
+    # UTC+9 のタイムゾーンオブジェクトを作る
+    UTC9 = datetime.timezone(datetime.timedelta(hours=9))
+
+    # 「今から30秒前」を Python側で計算 (UTC+9ベース)
+    threshold = datetime.datetime.now(UTC9) - datetime.timedelta(seconds=30)
 
     with get_db_connection() as conn:
         with conn.cursor() as cur:
@@ -2017,11 +2021,9 @@ def send_reminders():
             rows = cur.fetchall()
 
             for (est_id, user_id, quote_number, total_price, created_at) in rows:
-                logger.info(f"[DEBUG] estimate_id={est_id}, user_id={user_id}, created_at={created_at}")
-                logger.info(f"[DEBUG] threshold={threshold}, created_at< threshold? -> {created_at < threshold}")
-                # DBが TIMESTAMP WITHOUT TIME ZONE の場合、tzinfo が None のため UTC として再設定
+                # DBが TIMESTAMP WITHOUT TIME ZONE の場合、tzinfo が None のため "UTC+9" として再設定
                 if created_at.tzinfo is None:
-                    created_at = created_at.replace(tzinfo=datetime.timezone.utc)
+                    created_at = created_at.replace(tzinfo=UTC9)
 
                 # 30秒以上前に作成されたらリマインド対象
                 if created_at < threshold:
@@ -2056,6 +2058,7 @@ def send_reminders():
                         logger.error(f"Push reminder failed for user_id={user_id}: {e}")
 
     return "リマインド送信完了"
+
 
 
 ###################################
