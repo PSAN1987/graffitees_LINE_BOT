@@ -2004,7 +2004,7 @@ def send_reminders():
               FROM estimates
              WHERE order_placed = false
                AND reminder_count < 2
-               AND created_at < (NOW() - INTERVAL '24 hours')
+               AND created_at < (NOW() - INTERVAL '30 seconds')
             """
             cur.execute(sql)
             rows = cur.fetchall()
