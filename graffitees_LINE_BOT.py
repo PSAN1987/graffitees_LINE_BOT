@@ -534,14 +534,14 @@ def handle_text_message(event):
         line_bot_api.reply_message(event.reply_token, flex)
         return
 
-    # ▼▼ 追加: 「注文用紙から注文」で写真待ちの状態でテキストを受け取った場合のガード ▼▼
+    # ▼▼ 「注文用紙から注文」で写真待ちの状態でテキストを受け取った場合のガード ▼▼
     if user_id in user_states and user_states[user_id].get("state") == "await_order_form_photo":
         line_bot_api.reply_message(
             event.reply_token,
             TextSendMessage(text="注文用紙の写真を送ってください。テキストはまだ受け付けていません。")
         )
         return
-    # ▲▲ 追加 ▲▲
+    # ▲▲
 
     if user_id in user_states:
         st = user_states[user_id].get("state")
@@ -591,7 +591,6 @@ def handle_text_message(event):
 
 ###################################
 # (J') LINEハンドラ: ImageMessage
-#     (注文用紙からの注文で写真をアップロードさせる機能)
 ###################################
 @handler.add(MessageEvent, message=ImageMessage)
 def handle_image_message(event):
@@ -799,7 +798,6 @@ def handle_postback(event):
             "ご注文に進まれる場合はWEBフォームから注文\n"
             "もしくは注文用紙から注文を選択してください。"
         )
-        # ここで「結果メッセージ + モード選択」をまとめて返信
         line_bot_api.reply_message(
             event.reply_token,
             [
@@ -1102,6 +1100,27 @@ FORM_HTML = """
     <label>プリント位置データ(その他): カタログの注文用紙に絵を描いて写真を撮影してアップロードしてください</label>
     <input type="file" name="position_data_other">
 
+    <!-- ★★★ 背ネーム・背番号プリント（複数選択チェックボックス） ★★★ -->
+    <h3>背ネーム・背番号プリント</h3>
+    <p>※複数選択可能</p>
+    <div class="checkbox-group">
+      <label>
+        <input type="checkbox" name="back_name_number_print[]" value="ネーム&背番号セット"> ネーム&背番号セット
+      </label>
+      <label>
+        <input type="checkbox" name="back_name_number_print[]" value="ネーム(大)"> ネーム(大)
+      </label>
+      <label>
+        <input type="checkbox" name="back_name_number_print[]" value="ネーム(小)"> ネーム(小)
+      </label>
+      <label>
+        <input type="checkbox" name="back_name_number_print[]" value="番号(大)"> 番号(大)
+      </label>
+      <label>
+        <input type="checkbox" name="back_name_number_print[]" value="番号(小)"> 番号(小)
+      </label>
+    </div>
+
     <h3>追加のデザインイメージデータ</h3>
     <p class="instruction">プリント位置(前, 左胸, 右胸, 背中, 左袖, 右袖)を選択し、アップロードできます。</p>
     <label>プリント位置:</label>
@@ -1188,21 +1207,18 @@ def webform_submit():
     size_ll = none_if_empty_int(form.get("size_ll"))
     size_lll = none_if_empty_int(form.get("size_lll"))
 
-    # ▼▼ 新規追加項目(前) ▼▼
     print_size_front = none_if_empty_str(form.get("print_size_front"))
     print_size_front_custom = none_if_empty_str(form.get("print_size_front_custom"))
     print_color_front = none_if_empty_str(form.get("print_color_front"))
     font_no_front = none_if_empty_str(form.get("font_no_front"))
     design_sample_front = none_if_empty_str(form.get("design_sample_front"))
 
-    # ▼▼ 新規追加項目(後) ▼▼
     print_size_back = none_if_empty_str(form.get("print_size_back"))
     print_size_back_custom = none_if_empty_str(form.get("print_size_back_custom"))
     print_color_back = none_if_empty_str(form.get("print_color_back"))
     font_no_back = none_if_empty_str(form.get("font_no_back"))
     design_sample_back = none_if_empty_str(form.get("design_sample_back"))
 
-    # ▼▼ 新規追加項目(その他) ▼▼
     print_size_other = none_if_empty_str(form.get("print_size_other"))
     print_size_other_custom = none_if_empty_str(form.get("print_size_other_custom"))
     print_color_other = none_if_empty_str(form.get("print_color_other"))
@@ -1222,6 +1238,10 @@ def webform_submit():
     additional_design_position = none_if_empty_str(form.get("additional_design_position"))
     additional_design_image = files.get("additional_design_image")
     additional_design_image_url = upload_file_to_s3(additional_design_image, S3_BUCKET_NAME, prefix="uploads/")
+
+    # ▼▼ 背ネーム・背番号プリント (複数選択) ▼▼
+    selected_back_name_number_print = form.getlist("back_name_number_print[]")  # 複数可
+    back_name_number_print_options = ",".join(selected_back_name_number_print) if selected_back_name_number_print else None
 
     # DBに保存 (orders)
     with get_db_connection() as conn:
@@ -1279,6 +1299,7 @@ def webform_submit():
                 additional_design_position,
                 additional_design_image_url,
 
+                back_name_number_print_options,  -- ★ 新規追加カラム
                 created_at
             ) VALUES (
                 %s, %s, %s, %s, %s,
@@ -1297,6 +1318,7 @@ def webform_submit():
                 %s,
                 %s,
 
+                %s,  -- back_name_number_print_options
                 NOW()
             )
             RETURNING id
@@ -1351,7 +1373,9 @@ def webform_submit():
                 other_url,
 
                 additional_design_position,
-                additional_design_image_url
+                additional_design_image_url,
+
+                back_name_number_print_options
             )
             cur.execute(sql, params)
             new_id = cur.fetchone()[0]
@@ -1509,13 +1533,15 @@ PAPER_FORM_HTML = """
       padding: 8px;
       font-size: 16px;
     }
-    .radio-group {
+    .radio-group,
+    .checkbox-group {
       margin-bottom: 16px;
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
     }
-    .radio-group label {
+    .radio-group label,
+    .checkbox-group label {
       display: flex;
       align-items: center;
     }
@@ -1722,6 +1748,27 @@ PAPER_FORM_HTML = """
     <label>プリント位置データ(その他): カタログの注文用紙に絵を描いて写真を撮影してアップロードしてください</label>
     <input type="file" name="position_data_other">
 
+    <!-- ★★★ 背ネーム・背番号プリント（複数選択チェックボックス） ★★★ -->
+    <h3>背ネーム・背番号プリント</h3>
+    <p>※複数選択可能</p>
+    <div class="checkbox-group">
+      <label>
+        <input type="checkbox" name="back_name_number_print[]" value="ネーム&背番号セット"> ネーム&背番号セット
+      </label>
+      <label>
+        <input type="checkbox" name="back_name_number_print[]" value="ネーム(大)"> ネーム(大)
+      </label>
+      <label>
+        <input type="checkbox" name="back_name_number_print[]" value="ネーム(小)"> ネーム(小)
+      </label>
+      <label>
+        <input type="checkbox" name="back_name_number_print[]" value="番号(大)"> 番号(大)
+      </label>
+      <label>
+        <input type="checkbox" name="back_name_number_print[]" value="番号(小)"> 番号(小)
+      </label>
+    </div>
+
     <h3>追加のデザインイメージデータ</h3>
     <p class="instruction">プリント位置(前, 左胸, 右胸, 背中, 左袖, 右袖)を選択し、アップロードできます。</p>
     <label>プリント位置:</label>
@@ -1821,6 +1868,10 @@ def paper_order_form_submit():
     additional_design_image = files.get("additional_design_image")
     additional_design_image_url = upload_file_to_s3(additional_design_image, S3_BUCKET_NAME, prefix="uploads/")
 
+    # ▼▼ 背ネーム・背番号プリント (複数選択) ▼▼
+    selected_back_name_number_print = form.getlist("back_name_number_print[]")
+    back_name_number_print_options = ",".join(selected_back_name_number_print) if selected_back_name_number_print else None
+
     # DBに保存 (orders)
     with get_db_connection() as conn:
         with conn.cursor() as cur:
@@ -1877,6 +1928,7 @@ def paper_order_form_submit():
                 additional_design_position,
                 additional_design_image_url,
 
+                back_name_number_print_options,  -- ★ 新規追加カラム
                 created_at
             ) VALUES (
                 %s, %s, %s, %s, %s,
@@ -1895,6 +1947,7 @@ def paper_order_form_submit():
                 %s,
                 %s,
 
+                %s,  -- 背ネーム・背番号プリント
                 NOW()
             )
             RETURNING id
@@ -1949,7 +2002,9 @@ def paper_order_form_submit():
                 other_url,
 
                 additional_design_position,
-                additional_design_image_url
+                additional_design_image_url,
+
+                back_name_number_print_options
             )
             cur.execute(sql, params)
             new_id = cur.fetchone()[0]
@@ -2073,7 +2128,6 @@ def send_reminders():
                     )
 
     return "リマインド送信完了"
-
 
 ###################################
 # Flask起動 (既存)
