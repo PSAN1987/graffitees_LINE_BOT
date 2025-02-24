@@ -117,8 +117,7 @@ def upload_file_to_s3(file_storage, s3_bucket, prefix="uploads/"):
 ###################################
 PRICE_TABLE = [
     # product,  minQty, maxQty, discountType, unitPrice, addColor, addPosition, addFullColor
-    # e.g. ドライTシャツ (早割 or 通常)
-    # ドライTシャツ
+    # （ドライTシャツ～ジップアップライトパーカーの全件は既存どおり）
     ("ドライTシャツ", 10, 14, "早割", 1830, 850, 850, 550),
     ("ドライTシャツ", 10, 14, "通常", 2030, 850, 850, 550),
     ("ドライTシャツ", 15, 19, "早割", 1470, 650, 650, 550),
@@ -134,7 +133,6 @@ PRICE_TABLE = [
     ("ドライTシャツ", 100, 500, "早割", 770, 300, 300, 550),
     ("ドライTシャツ", 100, 500, "通常", 970, 300, 300, 550),
 
-    # ヘビーウェイトTシャツ
     ("ヘビーウェイトTシャツ", 10, 14, "早割", 1970, 850, 850, 550),
     ("ヘビーウェイトTシャツ", 10, 14, "通常", 2170, 850, 850, 550),
     ("ヘビーウェイトTシャツ", 15, 19, "早割", 1610, 650, 650, 550),
@@ -150,7 +148,6 @@ PRICE_TABLE = [
     ("ヘビーウェイトTシャツ", 100, 500, "早割", 910, 300, 300, 550),
     ("ヘビーウェイトTシャツ", 100, 500, "通常", 1100, 300, 300, 550),
 
-    # ドライポロシャツ
     ("ドライポロシャツ", 10, 14, "早割", 2170, 850, 850, 550),
     ("ドライポロシャツ", 10, 14, "通常", 2370, 850, 850, 550),
     ("ドライポロシャツ", 15, 19, "早割", 1810, 650, 650, 550),
@@ -166,7 +163,6 @@ PRICE_TABLE = [
     ("ドライポロシャツ", 100, 500, "早割", 1110, 300, 300, 550),
     ("ドライポロシャツ", 100, 500, "通常", 1310, 300, 300, 550),
 
-    # ドライメッシュビブス
     ("ドライメッシュビブス", 10, 14, "早割", 2170, 850, 850, 550),
     ("ドライメッシュビブス", 10, 14, "通常", 2370, 850, 850, 550),
     ("ドライメッシュビブス", 15, 19, "早割", 1810, 650, 650, 550),
@@ -182,7 +178,6 @@ PRICE_TABLE = [
     ("ドライメッシュビブス", 100, 500, "早割", 1100, 300, 300, 550),
     ("ドライメッシュビブス", 100, 500, "通常", 1310, 300, 300, 550),
 
-    # ドライベースボールシャツ
     ("ドライベースボールシャツ", 10, 14, "早割", 2470, 850, 850, 550),
     ("ドライベースボールシャツ", 10, 14, "通常", 2670, 850, 850, 550),
     ("ドライベースボールシャツ", 15, 19, "早割", 2110, 650, 650, 550),
@@ -198,7 +193,6 @@ PRICE_TABLE = [
     ("ドライベースボールシャツ", 100, 500, "早割", 1410, 300, 300, 550),
     ("ドライベースボールシャツ", 100, 500, "通常", 1610, 300, 300, 550),
 
-    # ドライロングスリープTシャツ
     ("ドライロングスリープTシャツ", 10, 14, "早割", 2030, 850, 850, 550),
     ("ドライロングスリープTシャツ", 10, 14, "通常", 2230, 850, 850, 550),
     ("ドライロングスリープTシャツ", 15, 19, "早割", 1670, 650, 650, 550),
@@ -214,7 +208,6 @@ PRICE_TABLE = [
     ("ドライロングスリープTシャツ", 100, 500, "早割", 970, 300, 300, 550),
     ("ドライロングスリープTシャツ", 100, 500, "通常", 1170, 300, 300, 550),
 
-    # ドライハーフパンツ
     ("ドライハーフパンツ", 10, 14, "早割", 2270, 850, 850, 550),
     ("ドライハーフパンツ", 10, 14, "通常", 2470, 850, 850, 550),
     ("ドライハーフパンツ", 15, 19, "早割", 1910, 650, 650, 550),
@@ -230,7 +223,6 @@ PRICE_TABLE = [
     ("ドライハーフパンツ", 100, 500, "早割", 1210, 300, 300, 550),
     ("ドライハーフパンツ", 100, 500, "通常", 1410, 300, 300, 550),
 
-    # ヘビーウェイトロングスリープTシャツ
     ("ヘビーウェイトロングスリープTシャツ", 10, 14, "早割", 2330, 850, 850, 550),
     ("ヘビーウェイトロングスリープTシャツ", 10, 14, "通常", 2530, 850, 850, 550),
     ("ヘビーウェイトロングスリープTシャツ", 15, 19, "早割", 1970, 650, 650, 550),
@@ -246,7 +238,6 @@ PRICE_TABLE = [
     ("ヘビーウェイトロングスリープTシャツ", 100, 500, "早割", 1270, 300, 300, 550),
     ("ヘビーウェイトロングスリープTシャツ", 100, 500, "通常", 1470, 300, 300, 550),
 
-    # クルーネックライトトレーナー
     ("クルーネックライトトレーナー", 10, 14, "早割", 2870, 850, 850, 550),
     ("クルーネックライトトレーナー", 10, 14, "通常", 3070, 850, 850, 550),
     ("クルーネックライトトレーナー", 15, 19, "早割", 2510, 650, 650, 550),
@@ -262,7 +253,6 @@ PRICE_TABLE = [
     ("クルーネックライトトレーナー", 100, 500, "早割", 1810, 300, 300, 550),
     ("クルーネックライトトレーナー", 100, 500, "通常", 2010, 300, 300, 550),
 
-    # フーデッドライトパーカー
     ("フーデッドライトパーカー", 10, 14, "早割", 3270, 850, 850, 550),
     ("フーデッドライトパーカー", 10, 14, "通常", 3470, 850, 850, 550),
     ("フーデッドライトパーカー", 15, 19, "早割", 2910, 650, 650, 550),
@@ -278,7 +268,6 @@ PRICE_TABLE = [
     ("フーデッドライトパーカー", 100, 500, "早割", 2210, 300, 300, 550),
     ("フーデッドライトパーカー", 100, 500, "通常", 2410, 300, 300, 550),
 
-    # スタンダードトレーナー
     ("スタンダードトレーナー", 10, 14, "早割", 3280, 850, 850, 550),
     ("スタンダードトレーナー", 10, 14, "通常", 3480, 850, 850, 550),
     ("スタンダードトレーナー", 15, 19, "早割", 2920, 650, 650, 550),
@@ -294,7 +283,6 @@ PRICE_TABLE = [
     ("スタンダードトレーナー", 100, 500, "早割", 2220, 300, 300, 550),
     ("スタンダードトレーナー", 100, 500, "通常", 2420, 300, 300, 550),
 
-    # スタンダードWフードパーカー
     ("スタンダードWフードパーカー", 10, 14, "早割", 4040, 850, 850, 550),
     ("スタンダードWフードパーカー", 10, 14, "通常", 4240, 850, 850, 550),
     ("スタンダードWフードパーカー", 15, 19, "早割", 3680, 650, 650, 550),
@@ -310,7 +298,6 @@ PRICE_TABLE = [
     ("スタンダードWフードパーカー", 100, 500, "早割", 2980, 300, 300, 550),
     ("スタンダードWフードパーカー", 100, 500, "通常", 3180, 300, 300, 550),
 
-    # ジップアップライトパーカー
     ("ジップアップライトパーカー", 10, 14, "早割", 3770, 850, 850, 550),
     ("ジップアップライトパーカー", 10, 14, "通常", 3970, 850, 850, 550),
     ("ジップアップライトパーカー", 15, 19, "早割", 3410, 650, 650, 550),
@@ -327,6 +314,7 @@ PRICE_TABLE = [
     ("ジップアップライトパーカー", 100, 500, "通常", 2910, 300, 300, 550),
 ]
 
+# こちらは既存の簡易版計算ロジック(参考)
 def calc_total_price(
     product_name: str,
     quantity: int,
@@ -765,7 +753,7 @@ def handle_postback(event):
         else:
             unit_price = 0
 
-        # 見積番号を発行（例: "Q" + UNIXタイム とか）
+        # 見積番号を発行（例: "Q" + UNIXタイム）
         import time
         quote_number = f"Q{int(time.time())}"
 
@@ -1157,7 +1145,7 @@ def none_if_empty_str(val: str):
     return val
 
 def none_if_empty_date(val: str):
-    """日付カラム用: 空なら None、そうでなければそのまま文字列として渡す"""
+    """日付カラム用: 空なら None、そうでなければ文字列として返す(バリデーション簡略)"""
     if not val:
         return None
     return val
@@ -1167,6 +1155,135 @@ def none_if_empty_int(val: str):
     if not val:
         return None
     return int(val)
+
+###################################
+# ▼▼ 新規追加機能: 注文時に価格を計算する関数
+###################################
+import datetime
+
+def calculate_order_price(
+    product_name: str,
+    size_ss: int,
+    size_s: int,
+    size_m: int,
+    size_l: int,
+    size_ll: int,
+    size_lll: int,
+    application_date_str: str,
+    use_date_str: str,
+    print_color_front: str,
+    print_color_back: str,
+    print_color_other: str,
+    design_sample_back: str,
+    design_sample_other: str,
+    back_name_number_print_options: str
+) -> (str, int, int):
+    """
+    1. 製品名を取得
+    2. 各サイズの数を合計して合計数量を取得
+    3. 使用日 - 申込日 で 14日以上なら "早割", 14日以内なら "通常"
+    4. PRICE_TABLE から unit_price を取得
+    5. front/back/other のプリントカラーを判定し、2色以上なら addColor を加算
+    7. design_sample_back があれば addPosition、 design_sample_other があれば addPosition
+    9. back_name_number_print_options(複数可)に応じて追加料金加算
+    10. 合計金額 + 枚数で割った単価を返す
+    戻り値: (discount_type, total_price, unit_price)
+    """
+
+    # 合計枚数
+    total_qty = 0
+    for sz in [size_ss, size_s, size_m, size_l, size_ll, size_lll]:
+        if sz:
+            total_qty += sz
+
+    # 日付差分による 早割 or 通常
+    discount_type = "通常"  # デフォルト
+    if application_date_str and use_date_str:
+        try:
+            fmt = "%Y-%m-%d"
+            app_date = datetime.datetime.strptime(application_date_str, fmt).date()
+            use_date = datetime.datetime.strptime(use_date_str, fmt).date()
+            diff = (use_date - app_date).days
+            if diff >= 14:
+                discount_type = "早割"
+            else:
+                discount_type = "通常"
+        except:
+            pass  # 失敗時は通常扱い
+
+    # PRICE_TABLEから unit_price, addColor, addPosition, addFullColor を取得
+    row = None
+    for item in PRICE_TABLE:
+        (p_name, min_q, max_q, d_type, unit_price, add_color, add_position, add_full_color) = item
+        if p_name == product_name and d_type == discount_type and (min_q <= total_qty <= max_q):
+            row = item
+            break
+
+    if not row:
+        # 見つからなかった場合は金額0
+        return (discount_type, 0, 0)
+
+    (_, _, _, _, unit_price, add_color, add_position, add_full_color) = row
+
+    base_price = unit_price * total_qty
+    extra_price = 0
+
+    # プリントカラー数チェック: 2色以上なら add_color 加算
+    def count_colors(color_str):
+        # カンマ区切り想定例: "赤,白" => 2色
+        # またはスペース区切りなど実際の入力ルール次第だが、簡易実装
+        if not color_str:
+            return 0
+        # カンマか改行かスペースあたりで分割
+        # ただし厳密には正規表現等で要調整
+        parts = [p.strip() for p in color_str.replace("、",",").replace("\n"," ").split(",")]
+        colors = []
+        for prt in parts:
+            sub_parts = prt.split()
+            for sub in sub_parts:
+                if sub:  # 空でなければ
+                    colors.append(sub)
+        return len(colors)
+
+    front_colors_count = count_colors(print_color_front)
+    back_colors_count = count_colors(print_color_back)
+    other_colors_count = count_colors(print_color_other)
+
+    if front_colors_count >= 2:
+        extra_price += add_color * total_qty
+    if back_colors_count >= 2:
+        extra_price += add_color * total_qty
+    if other_colors_count >= 2:
+        extra_price += add_color * total_qty
+
+    # 7. design_sample_back があれば addPosition
+    # 8. design_sample_other があれば addPosition
+    if design_sample_back:  # 空文字じゃなければ
+        extra_price += add_position * total_qty
+    if design_sample_other:
+        extra_price += add_position * total_qty
+
+    # 9. back_name_number_print_options
+    #   例: "ネーム&背番号セット,番号(大)" のようにカンマ区切りで入っていると仮定
+    #   以下、各種料金はサンプル(必要に応じて修正)
+    name_number_cost_map = {
+        "ネーム&背番号セット": 900,
+        "ネーム(大)": 550,
+        "ネーム(小)": 250,
+        "番号(大)": 550,
+        "番号(小)": 250
+    }
+    if back_name_number_print_options:
+        # カンマ区切りなどを分割
+        opts = [o.strip() for o in back_name_number_print_options.split(",")]
+        for opt in opts:
+            if opt in name_number_cost_map:
+                extra_price += name_number_cost_map[opt] * total_qty
+
+    total_price = base_price + extra_price
+    unit_price_calc = total_price // total_qty if total_qty > 0 else 0
+
+    return (discount_type, total_price, unit_price_calc)
 
 ###################################
 # (N) /webform_submit: フォーム送信
@@ -1299,7 +1416,7 @@ def webform_submit():
                 additional_design_position,
                 additional_design_image_url,
 
-                back_name_number_print_options,  -- ★ 新規追加カラム
+                back_name_number_print_options,
                 created_at
             ) VALUES (
                 %s, %s, %s, %s, %s,
@@ -1318,7 +1435,7 @@ def webform_submit():
                 %s,
                 %s,
 
-                %s,  -- back_name_number_print_options
+                %s,
                 NOW()
             )
             RETURNING id
@@ -1385,12 +1502,49 @@ def webform_submit():
     # 見積→注文へのコンバージョンを示すため、estimatesテーブル側の order_placed = true に更新しておく例
     mark_estimate_as_ordered(user_id)
 
-    # フォーム送信完了 → Push通知
+    # ★★★ ここで注文価格計算をして、LINEに通知する ★★★
+    (discount_type, total_price, unit_price_calc) = calculate_order_price(
+        product_name,
+        size_ss or 0,
+        size_s or 0,
+        size_m or 0,
+        size_l or 0,
+        size_ll or 0,
+        size_lll or 0,
+        application_date or "",
+        use_date or "",
+        print_color_front or "",
+        print_color_back or "",
+        print_color_other or "",
+        design_sample_back or "",
+        design_sample_other or "",
+        back_name_number_print_options or ""
+    )
+
+    # 学校名や製品情報をまとめて通知
+    # プリント位置情報は「前/後/その他」に実際に何が入力されたかで変わりそうですが簡易版として
+    used_positions = []
+    if print_color_front:  # 前面に何かプリントカラーあるなら
+        used_positions.append("前")
+    if print_color_back:
+        used_positions.append("後")
+    if print_color_other:
+        used_positions.append("その他")
+
+    # 背ネーム背番号情報
+    bn_options = back_name_number_print_options or "なし"
+
     push_text = (
-        "WEBフォームの注文を受け付けました！\n"
+        f"ご注文ありがとうございます。\n"
         f"学校名: {school_name}\n"
         f"商品名: {product_name}\n"
-        "後ほど担当者からご連絡いたします。"
+        f"商品カラー: {product_color}\n"
+        f"プリント位置: {', '.join(used_positions) if used_positions else 'なし'}\n"
+        f"背ネーム&背番号プリント: {bn_options}\n"
+        f"割引種別: {discount_type}\n"
+        f"合計金額: ¥{total_price:,}\n"
+        f"1枚あたり: ¥{unit_price_calc:,}\n"
+        "担当者より後ほどご連絡いたします。"
     )
     try:
         line_bot_api.push_message(to=user_id, messages=TextSendMessage(text=push_text))
@@ -1468,7 +1622,6 @@ def openai_extract_form_data(ocr_text: str) -> dict:
         "print_size_back","print_size_back_custom","print_color_back","font_no_back","design_sample_back",
         "print_size_other","print_size_other_custom","print_color_other","font_no_other","design_sample_other"
     ]
-    （前後のプリント位置やカラー情報など読み取れそうなら適宜含めて構いません）
     """
 
     user_prompt = f"""
@@ -1928,7 +2081,7 @@ def paper_order_form_submit():
                 additional_design_position,
                 additional_design_image_url,
 
-                back_name_number_print_options,  -- ★ 新規追加カラム
+                back_name_number_print_options,
                 created_at
             ) VALUES (
                 %s, %s, %s, %s, %s,
@@ -1947,7 +2100,7 @@ def paper_order_form_submit():
                 %s,
                 %s,
 
-                %s,  -- 背ネーム・背番号プリント
+                %s,
                 NOW()
             )
             RETURNING id
@@ -2014,11 +2167,47 @@ def paper_order_form_submit():
     # 見積→注文へのコンバージョンを示すため、estimatesテーブル側の order_placed = true に更新
     mark_estimate_as_ordered(user_id)
 
+    # ★★★ ここで注文価格計算をして、LINEに通知する ★★★
+    (discount_type, total_price, unit_price_calc) = calculate_order_price(
+        product_name,
+        size_ss or 0,
+        size_s or 0,
+        size_m or 0,
+        size_l or 0,
+        size_ll or 0,
+        size_lll or 0,
+        application_date or "",
+        use_date or "",
+        print_color_front or "",
+        print_color_back or "",
+        print_color_other or "",
+        design_sample_back or "",
+        design_sample_other or "",
+        back_name_number_print_options or ""
+    )
+
+    # プリント位置情報まとめ(簡易)
+    used_positions = []
+    if print_color_front:
+        used_positions.append("前")
+    if print_color_back:
+        used_positions.append("後")
+    if print_color_other:
+        used_positions.append("その他")
+
+    bn_options = back_name_number_print_options or "なし"
+
     push_text = (
-        "注文用紙(写真)からの注文を受け付けました！\n"
+        f"ご注文ありがとうございます。(注文用紙)\n"
         f"学校名: {school_name}\n"
         f"商品名: {product_name}\n"
-        "後ほど担当者からご連絡いたします。"
+        f"商品カラー: {product_color}\n"
+        f"プリント位置: {', '.join(used_positions) if used_positions else 'なし'}\n"
+        f"背ネーム&背番号プリント: {bn_options}\n"
+        f"割引種別: {discount_type}\n"
+        f"合計金額: ¥{total_price:,}\n"
+        f"1枚あたり: ¥{unit_price_calc:,}\n"
+        "担当者より後ほどご連絡いたします。"
     )
     try:
         line_bot_api.push_message(to=user_id, messages=TextSendMessage(text=push_text))
@@ -2047,25 +2236,20 @@ def mark_estimate_as_ordered(user_id):
 ###################################
 # ▼▼ 24時間ごとにリマインドを送るデモ
 ###################################
-import datetime
-
 @app.route("/send_reminders", methods=["GET"])
 def send_reminders():
     """
     作成から30秒以上経過した (order_placed=false, reminder_count<2) の見積をリマインドする。
-    Python側の時刻を UTC+9 (JST) として扱い、ログ出力を行う。
+    デモのため30秒にしています。
     """
     logger.info("[DEBUG] /send_reminders endpoint called.")
 
-    # UTC+9 のタイムゾーンオブジェクト
     UTC9 = datetime.timezone(datetime.timedelta(hours=9))
-    # 「今から30秒前」を JST で計算
     threshold = datetime.datetime.now(UTC9) - datetime.timedelta(seconds=30)
     logger.info(f"[DEBUG] threshold (30秒前) = {threshold}")
 
     with get_db_connection() as conn:
         with conn.cursor() as cur:
-            # order_placed=false & reminder_count<2 の見積を全件取得
             sql = """
             SELECT id, user_id, quote_number, total_price, created_at
               FROM estimates
@@ -2078,7 +2262,6 @@ def send_reminders():
             logger.info(f"[DEBUG] fetched {len(rows)} rows from estimates for reminder check.")
 
             for (est_id, user_id, quote_number, total_price, created_at) in rows:
-                # DBが TIMESTAMP WITHOUT TIME ZONE の場合、tzinfo が None
                 if created_at.tzinfo is None:
                     created_at = created_at.replace(tzinfo=UTC9)
 
@@ -2086,7 +2269,6 @@ def send_reminders():
                     f"[DEBUG] Checking estimate_id={est_id}, created_at={created_at}, quote_number={quote_number}"
                 )
 
-                # 「created_at < threshold」 → “作成から30秒以上 経過” とみなす
                 if created_at < threshold:
                     logger.info(
                         f"[DEBUG] estimate_id={est_id} is older than 30 seconds; sending reminder."
@@ -2100,18 +2282,15 @@ def send_reminders():
                     )
 
                     try:
-                        # リマインド通知
                         line_bot_api.push_message(
                             to=user_id,
                             messages=TextSendMessage(text=reminder_text)
                         )
-                        # リマインド後、すぐモード選択を案内
                         line_bot_api.push_message(
                             to=user_id,
                             messages=[create_mode_selection_flex()]
                         )
 
-                        # reminder_countを+1
                         with conn.cursor() as cur2:
                             cur2.execute(
                                 "UPDATE estimates SET reminder_count = reminder_count + 1 WHERE id = %s",
