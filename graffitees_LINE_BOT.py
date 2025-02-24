@@ -912,30 +912,50 @@ FORM_HTML = """
       color: #555;
     }
 
-    /* ▼▼ 追加: TシャツのSVGをサイズ調整するクラス ▼▼ */
-    .tshirt-svg-container {
-      width: 300px;  /* お好みのサイズ */
+    /* ▼▼ Tシャツ描画用のスタイル ▼▼ */
+    .tshirt-container {
+      width: 300px;    /* Tシャツ画像の表示幅(お好みで) */
       margin-bottom: 16px;
-      border: 1px solid #ccc;
+      position: relative; /* 絶対配置などに対応できるように */
     }
-    .tshirt-svg {
+    svg {
       width: 100%;
       height: auto;
       display: block;
     }
-    .pos-label:hover {
-      cursor: pointer;
-      opacity: 0.7;
+    .tshirt-shape {
+      fill: #f5f5f5;   /* Tシャツの色(薄いグレー) */
+      stroke: #aaa;    /* 縁取り */
+      stroke-width: 2;
     }
-    /* クリック時のハイライト用（簡易） */
-    .pos-label.selected {
-      fill: orange; /* 選択されたらオレンジにしてみる */
+    /* クリック領域(①～⑭)となる円や四角 */
+    .click-area {
+      fill: white;
+      stroke: black;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .click-area:hover {
+      fill: orange;    /* ホバー時に変化 */
+    }
+    .click-area.selected {
+      fill: orange;    /* クリック選択後の色 */
+    }
+    /* 番号ラベルのスタイル (クリックを透過) */
+    .area-label {
+      pointer-events: none;
+      font-size: 12px;
+      text-anchor: middle;
+      alignment-baseline: middle;
+      user-select: none;
     }
   </style>
 </head>
 <body>
   <h1>WEBフォームから注文</h1>
   <form action="/webform_submit" method="POST" enctype="multipart/form-data">
+
+    <!-- 既存: user_id (LINE user_id) -->
     <input type="hidden" name="user_id" value="{{ user_id }}" />
 
     <label>申込日:</label>
@@ -1042,9 +1062,7 @@ FORM_HTML = """
     <input type="number" name="size_lll">
 
 
-    <!-- =========================
-         ▼▼ 前面プリント ▼▼
-         ========================= -->
+    <!-- ▼▼ 前面プリント ▼▼ -->
     <h3>プリント位置: 前</h3>
     <div class="radio-group">
       <label>
@@ -1064,44 +1082,71 @@ FORM_HTML = """
     <label>プリントサンプル(前):</label>
     <input type="text" name="design_sample_front" placeholder="例: D-XXX">
 
-    <label>プリント位置データ(前): カタログの注文用紙に絵を描いて写真を撮影してアップロードしてください</label>
+    <label>プリント位置データ(前) (画像アップロード):</label>
     <input type="file" name="position_data_front">
 
+    <!-- 
+      (A) クリックで選択した前面位置(①～⑨)をセットするhidden/readonly入力
+      Flask側: request.form.get("front_positions_selected")
+    -->
+    <input type="text" name="front_positions_selected" id="front_positions_selected"
+           placeholder="前面選択: 1~9" readonly>
 
-    <!-- ▼▼ 追加: 「画像が無い場合の Tシャツ前面(①～⑨)選択」SVG ▼-->
-    <p>※前面にプリント画像が無い場合、下のTシャツをタップして番号を選択してください</p>
-    <input type="text" name="front_positions_selected" id="front_positions_selected" placeholder="前面で選んだ番号が表示されます" readonly>
+    <!-- ▼▼ Tシャツ前面SVG (①～⑨) ▼▼ -->
+    <div class="tshirt-container">
+      <svg viewBox="0 0 300 300">
+        <!-- ざっくりした前面Tシャツ形 -->
+        <path class="tshirt-shape" d="
+          M 70,20
+          L 230,20
+          Q 240,30 230,40
+          L 230,70
+          L 280,70
+          L 280,110
+          L 230,110
+          L 230,250
+          L 70,250
+          L 70,110
+          L 20,110
+          L 20,70
+          L 70,70
+          L 70,40
+          Q 60,30 70,20
+          Z
+        "></path>
 
-    <div class="tshirt-svg-container">
-      <svg viewBox="0 0 200 300" class="tshirt-svg">
-        <!-- 前面Tシャツの簡易図 -->
-        <rect x="30" y="10" width="140" height="280" fill="#ddd" />
-        <!-- ①～⑨の丸印を置く例 -->
-        <circle cx="60" cy="40" r="10" fill="white" stroke="black"
-          class="pos-label" data-num="1" />
-        <circle cx="100" cy="40" r="10" fill="white" stroke="black"
-          class="pos-label" data-num="2" />
-        <circle cx="140" cy="40" r="10" fill="white" stroke="black"
-          class="pos-label" data-num="3" />
-        <circle cx="60" cy="100" r="10" fill="white" stroke="black"
-          class="pos-label" data-num="4" />
-        <circle cx="140" cy="100" r="10" fill="white" stroke="black"
-          class="pos-label" data-num="5" />
-        <circle cx="100" cy="160" r="10" fill="white" stroke="black"
-          class="pos-label" data-num="6" />
-        <circle cx="60" cy="220" r="10" fill="white" stroke="black"
-          class="pos-label" data-num="7" />
-        <circle cx="100" cy="220" r="10" fill="white" stroke="black"
-          class="pos-label" data-num="8" />
-        <circle cx="140" cy="220" r="10" fill="white" stroke="black"
-          class="pos-label" data-num="9" />
+        <!-- ①～⑨ (円) -->
+        <circle cx="45" cy="60" r="10" class="click-area" data-num="1"></circle>
+        <text x="45" y="60" class="area-label">1</text>
+
+        <circle cx="255" cy="60" r="10" class="click-area" data-num="2"></circle>
+        <text x="255" y="60" class="area-label">2</text>
+
+        <circle cx="110" cy="90" r="10" class="click-area" data-num="3"></circle>
+        <text x="110" y="90" class="area-label">3</text>
+
+        <circle cx="150" cy="90" r="10" class="click-area" data-num="4"></circle>
+        <text x="150" y="90" class="area-label">4</text>
+
+        <circle cx="190" cy="90" r="10" class="click-area" data-num="5"></circle>
+        <text x="190" y="90" class="area-label">5</text>
+
+        <circle cx="150" cy="130" r="10" class="click-area" data-num="6"></circle>
+        <text x="150" y="130" class="area-label">6</text>
+
+        <circle cx="100" cy="210" r="10" class="click-area" data-num="7"></circle>
+        <text x="100" y="210" class="area-label">7</text>
+
+        <circle cx="150" cy="210" r="10" class="click-area" data-num="8"></circle>
+        <text x="150" y="210" class="area-label">8</text>
+
+        <circle cx="200" cy="210" r="10" class="click-area" data-num="9"></circle>
+        <text x="200" y="210" class="area-label">9</text>
       </svg>
     </div>
 
 
-    <!-- =========================
-         ▼▼ 背面プリント ▼▼
-         ========================= -->
+    <!-- ▼▼ 背面プリント ▼▼ -->
     <h3>プリント位置: 後</h3>
     <div class="radio-group">
       <label>
@@ -1121,36 +1166,58 @@ FORM_HTML = """
     <label>プリントサンプル(後):</label>
     <input type="text" name="design_sample_back" placeholder="例: D-XXX">
 
-    <label>プリント位置データ(後): カタログの注文用紙に絵を描いて写真を撮影してアップロードしてください</label>
+    <label>プリント位置データ(後) (画像アップロード):</label>
     <input type="file" name="position_data_back">
 
+    <!--
+      (B) クリックで選択した背面位置(⑩～⑭)をセット
+      Flask側: request.form.get("back_positions_selected")
+    -->
+    <input type="text" name="back_positions_selected" id="back_positions_selected"
+           placeholder="背面選択: 10~14" readonly>
 
-    <!-- ▼▼ 追加: 「画像が無い場合の Tシャツ背面(10～14)選択」SVG ▼-->
-    <p>※背面にプリント画像が無い場合、下のTシャツをタップして番号を選択してください</p>
-    <input type="text" name="back_positions_selected" id="back_positions_selected" placeholder="背面で選んだ番号が表示されます" readonly>
+    <!-- ▼▼ Tシャツ背面SVG (⑩～⑭) ▼▼ -->
+    <div class="tshirt-container">
+      <svg viewBox="0 0 300 300">
+        <path class="tshirt-shape" d="
+          M 70,20
+          L 230,20
+          Q 240,30 230,40
+          L 230,70
+          L 280,70
+          L 280,110
+          L 230,110
+          L 230,250
+          L 70,250
+          L 70,110
+          L 20,110
+          L 20,70
+          L 70,70
+          L 70,40
+          Q 60,30 70,20
+          Z
+        "></path>
 
-    <div class="tshirt-svg-container">
-      <svg viewBox="0 0 200 300" class="tshirt-svg">
-        <!-- 背面Tシャツの簡易図 -->
-        <rect x="30" y="10" width="140" height="280" fill="#eee" />
-        <!-- 10～14の丸印を置く例 -->
-        <circle cx="100" cy="40" r="10" fill="white" stroke="black"
-          class="pos-label" data-num="10" />
-        <circle cx="100" cy="100" r="10" fill="white" stroke="black"
-          class="pos-label" data-num="11" />
-        <circle cx="60" cy="220" r="10" fill="white" stroke="black"
-          class="pos-label" data-num="12" />
-        <circle cx="100" cy="220" r="10" fill="white" stroke="black"
-          class="pos-label" data-num="13" />
-        <circle cx="140" cy="220" r="10" fill="white" stroke="black"
-          class="pos-label" data-num="14" />
+        <!-- ⑩～⑭ -->
+        <circle cx="150" cy="60" r="10" class="click-area" data-num="10"></circle>
+        <text x="150" y="60" class="area-label">10</text>
+
+        <circle cx="150" cy="120" r="10" class="click-area" data-num="11"></circle>
+        <text x="150" y="120" class="area-label">11</text>
+
+        <circle cx="100" cy="210" r="10" class="click-area" data-num="12"></circle>
+        <text x="100" y="210" class="area-label">12</text>
+
+        <circle cx="150" cy="210" r="10" class="click-area" data-num="13"></circle>
+        <text x="150" y="210" class="area-label">13</text>
+
+        <circle cx="200" cy="210" r="10" class="click-area" data-num="14"></circle>
+        <text x="200" y="210" class="area-label">14</text>
       </svg>
     </div>
 
 
-    <!-- =========================
-         ▼▼ その他 ▼▼
-         ========================= -->
+    <!-- ▼▼ その他プリント位置 ▼▼ -->
     <h3>プリント位置: その他</h3>
     <div class="radio-group">
       <label>
@@ -1170,7 +1237,7 @@ FORM_HTML = """
     <label>プリントサンプル(その他):</label>
     <input type="text" name="design_sample_other" placeholder="例: D-XXX">
 
-    <label>プリント位置データ(その他): カタログの注文用紙に絵を描いて写真を撮影してアップロードしてください</label>
+    <label>プリント位置データ(その他) (画像アップロード):</label>
     <input type="file" name="position_data_other">
 
 
@@ -1195,6 +1262,7 @@ FORM_HTML = """
       </label>
     </div>
 
+    <!-- ★ 追加デザインイメージアップロード (任意) -->
     <h3>追加のデザインイメージデータ</h3>
     <p class="instruction">プリント位置(前, 左胸, 右胸, 背中, 左袖, 右袖)を選択し、アップロードできます。</p>
     <label>プリント位置:</label>
@@ -1212,34 +1280,39 @@ FORM_HTML = """
 
     <button type="submit">送信</button>
 
-
-    <!-- ▼▼ 追記: JavaScriptで①～⑭をクリックした際に hidden/input に値を設定する ▼-->
+    <!-- 
+      ▼▼ JavaScript: 前面(1～9)・背面(10～14)クリック時のイベント 
+          クリック領域要素は .click-area 
+    -->
     <script>
-      // 前面①～⑨クリック時
-      const frontPositions = document.querySelectorAll('.tshirt-svg-container:nth-of-type(1) .pos-label');
-      const frontInput = document.getElementById('front_positions_selected');
-      frontPositions.forEach(el => {
-        el.addEventListener('click', () => {
-          // まず全部のselectedを外す
-          frontPositions.forEach(p => p.classList.remove('selected'));
-          // 選択された要素だけハイライト
-          el.classList.add('selected');
+      // 前面: 1～9
+      const frontSvgContainer = document.querySelectorAll('.tshirt-container')[0];
+      const frontAreas = frontSvgContainer.querySelectorAll('.click-area');
+      const frontPositionsInput = document.getElementById('front_positions_selected');
 
-          const num = el.getAttribute('data-num');
-          frontInput.value = num;
+      frontAreas.forEach(area => {
+        area.addEventListener('click', () => {
+          // いったん全部の selected を外す
+          frontAreas.forEach(a => a.classList.remove('selected'));
+          // クリックしたものだけ selected
+          area.classList.add('selected');
+          // data-num を input に格納
+          const num = area.getAttribute('data-num');
+          frontPositionsInput.value = num;
         });
       });
 
-      // 背面10～14クリック時
-      const backSvgContainer = document.querySelectorAll('.tshirt-svg-container:nth-of-type(2) .pos-label');
-      const backInput = document.getElementById('back_positions_selected');
-      backSvgContainer.forEach(el => {
-        el.addEventListener('click', () => {
-          backSvgContainer.forEach(p => p.classList.remove('selected'));
-          el.classList.add('selected');
+      // 背面: 10～14
+      const backSvgContainer = document.querySelectorAll('.tshirt-container')[1];
+      const backAreas = backSvgContainer.querySelectorAll('.click-area');
+      const backPositionsInput = document.getElementById('back_positions_selected');
 
-          const num = el.getAttribute('data-num');
-          backInput.value = num;
+      backAreas.forEach(area => {
+        area.addEventListener('click', () => {
+          backAreas.forEach(a => a.classList.remove('selected'));
+          area.classList.add('selected');
+          const num = area.getAttribute('data-num');
+          backPositionsInput.value = num;
         });
       });
     </script>
@@ -1828,6 +1901,42 @@ PAPER_FORM_HTML = """
       font-size: 14px;
       color: #555;
     }
+
+    /* ▼▼ Tシャツ描画用のスタイル ▼▼ */
+    .tshirt-container {
+      width: 300px;    /* Tシャツ画像の表示幅(お好みで) */
+      margin-bottom: 16px;
+      position: relative; 
+    }
+    svg {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+    .tshirt-shape {
+      fill: #f5f5f5;   /* Tシャツの色(薄いグレー) */
+      stroke: #aaa;    /* 縁取り */
+      stroke-width: 2;
+    }
+    .click-area {
+      fill: white;
+      stroke: black;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .click-area:hover {
+      fill: orange;
+    }
+    .click-area.selected {
+      fill: orange;
+    }
+    .area-label {
+      pointer-events: none; /* テキスト自体はクリックの妨げにならない */
+      font-size: 12px;
+      text-anchor: middle;
+      alignment-baseline: middle;
+      user-select: none;
+    }
   </style>
 </head>
 <body>
@@ -1938,108 +2047,281 @@ PAPER_FORM_HTML = """
     <label>サイズ(LLL):</label>
     <input type="number" name="size_lll" value="{{ data['size_lll'] or '' }}">
 
+
+    <!-- ======================
+         ▼▼ 前面プリント ▼▼
+         ====================== -->
     <h3>プリント位置: 前</h3>
     <div class="radio-group">
       <label>
-        <input type="radio" name="print_size_front" value="おまかせ (最大:横28cm x 縦35cm以内)"
-          {% if data.get('print_size_front') == 'おまかせ (最大:横28cm x 縦35cm以内)' %}checked{% endif %}>
+        <input type="radio" name="print_size_front"
+               value="おまかせ (最大:横28cm x 縦35cm以内)"
+               {% if data.get('print_size_front') == 'おまかせ (最大:横28cm x 縦35cm以内)' %}checked{% endif %}>
         おまかせ (最大:横28cm x 縦35cm以内)
       </label>
       <label>
         <input type="radio" name="print_size_front" value="custom"
-          {% if data.get('print_size_front') == 'custom' %}checked{% endif %}>
+               {% if data.get('print_size_front') == 'custom' %}checked{% endif %}>
         ヨコcm x タテcmくらい(入力する):
       </label>
     </div>
-    <input type="text" name="print_size_front_custom" placeholder="例: 20cm x 15cm"
-      value="{{ data.get('print_size_front_custom') or '' }}">
+    <input type="text" name="print_size_front_custom"
+           placeholder="例: 20cm x 15cm"
+           value="{{ data.get('print_size_front_custom') or '' }}">
     <label>プリントカラー(前):</label>
-    <input type="text" name="print_color_front" placeholder="全てのカラーをご記入ください。計xx色"
-      value="{{ data.get('print_color_front') or '' }}">
-    <label>フォントNo.(前):</label>
-    <input type="text" name="font_no_front" placeholder="例: X-XX"
-      value="{{ data.get('font_no_front') or '' }}">
-    <label>プリントサンプル(前):</label>
-    <input type="text" name="design_sample_front" placeholder="例: D-XXX"
-      value="{{ data.get('design_sample_front') or '' }}">
+    <input type="text" name="print_color_front"
+           placeholder="全てのカラーをご記入ください。計xx色"
+           value="{{ data.get('print_color_front') or '' }}">
 
-    <label>プリント位置データ(前): カタログの注文用紙に絵を描いて写真を撮影してアップロードしてください</label>
+    <label>フォントNo.(前):</label>
+    <input type="text" name="font_no_front"
+           placeholder="例: X-XX"
+           value="{{ data.get('font_no_front') or '' }}">
+
+    <label>プリントサンプル(前):</label>
+    <input type="text" name="design_sample_front"
+           placeholder="例: D-XXX"
+           value="{{ data.get('design_sample_front') or '' }}">
+
+    <label>プリント位置データ(前):</label>
     <input type="file" name="position_data_front">
 
+    <!-- (A) 前面①～⑨の選択結果を格納 -->
+    <input type="text" name="front_positions_selected" id="front_positions_selected"
+           placeholder="前面で選んだ番号(1~9)" readonly
+           value="{{ data.get('front_positions_selected') or '' }}">
+
+    <!-- ▼▼ Tシャツ前面: ①～⑨ ▼▼ -->
+    <div class="tshirt-container">
+      <svg viewBox="0 0 300 300">
+        <path class="tshirt-shape" d="
+          M 70,20
+          L 230,20
+          Q 240,30 230,40
+          L 230,70
+          L 280,70
+          L 280,110
+          L 230,110
+          L 230,250
+          L 70,250
+          L 70,110
+          L 20,110
+          L 20,70
+          L 70,70
+          L 70,40
+          Q 60,30 70,20
+          Z
+        "></path>
+
+        <!-- ①～⑨ (円) -->
+        <circle cx="45" cy="60" r="10"
+                class="click-area"
+                data-num="1"></circle>
+        <text x="45" y="60" class="area-label">1</text>
+
+        <circle cx="255" cy="60" r="10"
+                class="click-area"
+                data-num="2"></circle>
+        <text x="255" y="60" class="area-label">2</text>
+
+        <circle cx="110" cy="90" r="10"
+                class="click-area"
+                data-num="3"></circle>
+        <text x="110" y="90" class="area-label">3</text>
+
+        <circle cx="150" cy="90" r="10"
+                class="click-area"
+                data-num="4"></circle>
+        <text x="150" y="90" class="area-label">4</text>
+
+        <circle cx="190" cy="90" r="10"
+                class="click-area"
+                data-num="5"></circle>
+        <text x="190" y="90" class="area-label">5</text>
+
+        <circle cx="150" cy="130" r="10"
+                class="click-area"
+                data-num="6"></circle>
+        <text x="150" y="130" class="area-label">6</text>
+
+        <circle cx="100" cy="210" r="10"
+                class="click-area"
+                data-num="7"></circle>
+        <text x="100" y="210" class="area-label">7</text>
+
+        <circle cx="150" cy="210" r="10"
+                class="click-area"
+                data-num="8"></circle>
+        <text x="150" y="210" class="area-label">8</text>
+
+        <circle cx="200" cy="210" r="10"
+                class="click-area"
+                data-num="9"></circle>
+        <text x="200" y="210" class="area-label">9</text>
+      </svg>
+    </div>
+
+
+    <!-- ======================
+         ▼▼ 背面プリント ▼▼
+         ====================== -->
     <h3>プリント位置: 後</h3>
     <div class="radio-group">
       <label>
-        <input type="radio" name="print_size_back" value="おまかせ (最大:横28cm x 縦35cm以内)"
-          {% if data.get('print_size_back') == 'おまかせ (最大:横28cm x 縦35cm以内)' %}checked{% endif %}>
+        <input type="radio" name="print_size_back"
+               value="おまかせ (最大:横28cm x 縦35cm以内)"
+               {% if data.get('print_size_back') == 'おまかせ (最大:横28cm x 縦35cm以内)' %}checked{% endif %}>
         おまかせ (最大:横28cm x 縦35cm以内)
       </label>
       <label>
         <input type="radio" name="print_size_back" value="custom"
-          {% if data.get('print_size_back') == 'custom' %}checked{% endif %}>
+               {% if data.get('print_size_back') == 'custom' %}checked{% endif %}>
         ヨコcm x タテcmくらい(入力する):
       </label>
     </div>
-    <input type="text" name="print_size_back_custom" placeholder="例: 20cm x 15cm"
-      value="{{ data.get('print_size_back_custom') or '' }}">
+    <input type="text" name="print_size_back_custom"
+           placeholder="例: 20cm x 15cm"
+           value="{{ data.get('print_size_back_custom') or '' }}">
     <label>プリントカラー(後):</label>
-    <input type="text" name="print_color_back" placeholder="全てのカラーをご記入ください。計xx色"
-      value="{{ data.get('print_color_back') or '' }}">
-    <label>フォントNo.(後):</label>
-    <input type="text" name="font_no_back" placeholder="例: X-XX"
-      value="{{ data.get('font_no_back') or '' }}">
-    <label>プリントサンプル(後):</label>
-    <input type="text" name="design_sample_back" placeholder="例: D-XXX"
-      value="{{ data.get('design_sample_back') or '' }}">
+    <input type="text" name="print_color_back"
+           placeholder="全てのカラーをご記入ください。計xx色"
+           value="{{ data.get('print_color_back') or '' }}">
 
-    <label>プリント位置データ(後): カタログの注文用紙に絵を描いて写真を撮影してアップロードしてください</label>
+    <label>フォントNo.(後):</label>
+    <input type="text" name="font_no_back"
+           placeholder="例: X-XX"
+           value="{{ data.get('font_no_back') or '' }}">
+
+    <label>プリントサンプル(後):</label>
+    <input type="text" name="design_sample_back"
+           placeholder="例: D-XXX"
+           value="{{ data.get('design_sample_back') or '' }}">
+
+    <label>プリント位置データ(後):</label>
     <input type="file" name="position_data_back">
 
+    <!-- (B) 背面⑩～⑭の選択結果を格納 -->
+    <input type="text" name="back_positions_selected" id="back_positions_selected"
+           placeholder="背面で選んだ番号(10~14)" readonly
+           value="{{ data.get('back_positions_selected') or '' }}">
+
+    <!-- ▼▼ Tシャツ背面: ⑩～⑭ ▼▼ -->
+    <div class="tshirt-container">
+      <svg viewBox="0 0 300 300">
+        <path class="tshirt-shape" d="
+          M 70,20
+          L 230,20
+          Q 240,30 230,40
+          L 230,70
+          L 280,70
+          L 280,110
+          L 230,110
+          L 230,250
+          L 70,250
+          L 70,110
+          L 20,110
+          L 20,70
+          L 70,70
+          L 70,40
+          Q 60,30 70,20
+          Z
+        "></path>
+
+        <circle cx="150" cy="60" r="10"
+                class="click-area"
+                data-num="10"></circle>
+        <text x="150" y="60" class="area-label">10</text>
+
+        <circle cx="150" cy="120" r="10"
+                class="click-area"
+                data-num="11"></circle>
+        <text x="150" y="120" class="area-label">11</text>
+
+        <circle cx="100" cy="210" r="10"
+                class="click-area"
+                data-num="12"></circle>
+        <text x="100" y="210" class="area-label">12</text>
+
+        <circle cx="150" cy="210" r="10"
+                class="click-area"
+                data-num="13"></circle>
+        <text x="150" y="210" class="area-label">13</text>
+
+        <circle cx="200" cy="210" r="10"
+                class="click-area"
+                data-num="14"></circle>
+        <text x="200" y="210" class="area-label">14</text>
+      </svg>
+    </div>
+
+
+    <!-- ======================
+         ▼▼ その他プリント ▼▼
+         ====================== -->
     <h3>プリント位置: その他</h3>
     <div class="radio-group">
       <label>
-        <input type="radio" name="print_size_other" value="おまかせ (最大:横28cm x 縦35cm以内)"
-          {% if data.get('print_size_other') == 'おまかせ (最大:横28cm x 縦35cm以内)' %}checked{% endif %}>
+        <input type="radio" name="print_size_other"
+               value="おまかせ (最大:横28cm x 縦35cm以内)"
+               {% if data.get('print_size_other') == 'おまかせ (最大:横28cm x 縦35cm以内)' %}checked{% endif %}>
         おまかせ (最大:横28cm x 縦35cm以内)
       </label>
       <label>
         <input type="radio" name="print_size_other" value="custom"
-          {% if data.get('print_size_other') == 'custom' %}checked{% endif %}>
+               {% if data.get('print_size_other') == 'custom' %}checked{% endif %}>
         ヨコcm x タテcmくらい(入力する):
       </label>
     </div>
-    <input type="text" name="print_size_other_custom" placeholder="例: 20cm x 15cm"
-      value="{{ data.get('print_size_other_custom') or '' }}">
+    <input type="text" name="print_size_other_custom"
+           placeholder="例: 20cm x 15cm"
+           value="{{ data.get('print_size_other_custom') or '' }}">
     <label>プリントカラー(その他):</label>
-    <input type="text" name="print_color_other" placeholder="全てのカラーをご記入ください。計xx色"
-      value="{{ data.get('print_color_other') or '' }}">
-    <label>フォントNo.(その他):</label>
-    <input type="text" name="font_no_other" placeholder="例: X-XX"
-      value="{{ data.get('font_no_other') or '' }}">
-    <label>プリントサンプル(その他):</label>
-    <input type="text" name="design_sample_other" placeholder="例: D-XXX"
-      value="{{ data.get('design_sample_other') or '' }}">
+    <input type="text" name="print_color_other"
+           placeholder="全てのカラーをご記入ください。計xx色"
+           value="{{ data.get('print_color_other') or '' }}">
 
-    <label>プリント位置データ(その他): カタログの注文用紙に絵を描いて写真を撮影してアップロードしてください</label>
+    <label>フォントNo.(その他):</label>
+    <input type="text" name="font_no_other"
+           placeholder="例: X-XX"
+           value="{{ data.get('font_no_other') or '' }}">
+
+    <label>プリントサンプル(その他):</label>
+    <input type="text" name="design_sample_other"
+           placeholder="例: D-XXX"
+           value="{{ data.get('design_sample_other') or '' }}">
+
+    <label>プリント位置データ(その他):</label>
     <input type="file" name="position_data_other">
+
 
     <!-- ★★★ 背ネーム・背番号プリント（複数選択チェックボックス） ★★★ -->
     <h3>背ネーム・背番号プリント</h3>
     <p>※複数選択可能</p>
     <div class="checkbox-group">
       <label>
-        <input type="checkbox" name="back_name_number_print[]" value="ネーム&背番号セット"> ネーム&背番号セット
+        <input type="checkbox" name="back_name_number_print[]" value="ネーム&背番号セット"
+          {% if 'ネーム&背番号セット' in (data.get('back_name_number_print_options') or '') %}checked{% endif %}>
+          ネーム&背番号セット
       </label>
       <label>
-        <input type="checkbox" name="back_name_number_print[]" value="ネーム(大)"> ネーム(大)
+        <input type="checkbox" name="back_name_number_print[]" value="ネーム(大)"
+          {% if 'ネーム(大)' in (data.get('back_name_number_print_options') or '') %}checked{% endif %}>
+          ネーム(大)
       </label>
       <label>
-        <input type="checkbox" name="back_name_number_print[]" value="ネーム(小)"> ネーム(小)
+        <input type="checkbox" name="back_name_number_print[]" value="ネーム(小)"
+          {% if 'ネーム(小)' in (data.get('back_name_number_print_options') or '') %}checked{% endif %}>
+          ネーム(小)
       </label>
       <label>
-        <input type="checkbox" name="back_name_number_print[]" value="番号(大)"> 番号(大)
+        <input type="checkbox" name="back_name_number_print[]" value="番号(大)"
+          {% if '番号(大)' in (data.get('back_name_number_print_options') or '') %}checked{% endif %}>
+          番号(大)
       </label>
       <label>
-        <input type="checkbox" name="back_name_number_print[]" value="番号(小)"> 番号(小)
+        <input type="checkbox" name="back_name_number_print[]" value="番号(小)"
+          {% if '番号(小)' in (data.get('back_name_number_print_options') or '') %}checked{% endif %}>
+          番号(小)
       </label>
     </div>
 
@@ -2048,17 +2330,51 @@ PAPER_FORM_HTML = """
     <label>プリント位置:</label>
     <select name="additional_design_position">
       <option value="">選択してください</option>
-      <option value="前">前</option>
-      <option value="左胸">左胸</option>
-      <option value="右胸">右胸</option>
-      <option value="背中">背中</option>
-      <option value="左袖">左袖</option>
-      <option value="右袖">右袖</option>
+      <option value="前" {% if data.get('additional_design_position') == '前' %}selected{% endif %}>前</option>
+      <option value="左胸" {% if data.get('additional_design_position') == '左胸' %}selected{% endif %}>左胸</option>
+      <option value="右胸" {% if data.get('additional_design_position') == '右胸' %}selected{% endif %}>右胸</option>
+      <option value="背中" {% if data.get('additional_design_position') == '背中' %}selected{% endif %}>背中</option>
+      <option value="左袖" {% if data.get('additional_design_position') == '左袖' %}selected{% endif %}>左袖</option>
+      <option value="右袖" {% if data.get('additional_design_position') == '右袖' %}selected{% endif %}>右袖</option>
     </select>
     <label>デザインイメージデータ:</label>
     <input type="file" name="additional_design_image">
 
     <button type="submit">送信</button>
+
+    <!-- ▼▼ JS: 前面(1～9)・背面(10～14) クリック選択 ▼▼ -->
+    <script>
+      // 前面
+      const frontSvgContainer = document.querySelectorAll('.tshirt-container')[0];
+      const frontAreas = frontSvgContainer.querySelectorAll('.click-area');
+      const frontPositionsInput = document.getElementById('front_positions_selected');
+
+      frontAreas.forEach(area => {
+        area.addEventListener('click', () => {
+          // いったん全部の selected を外す
+          frontAreas.forEach(a => a.classList.remove('selected'));
+          // クリックしたものだけ selected
+          area.classList.add('selected');
+          // data-num を input に格納
+          const num = area.getAttribute('data-num');
+          frontPositionsInput.value = num;
+        });
+      });
+
+      // 背面
+      const backSvgContainer = document.querySelectorAll('.tshirt-container')[1];
+      const backAreas = backSvgContainer.querySelectorAll('.click-area');
+      const backPositionsInput = document.getElementById('back_positions_selected');
+
+      backAreas.forEach(area => {
+        area.addEventListener('click', () => {
+          backAreas.forEach(a => a.classList.remove('selected'));
+          area.classList.add('selected');
+          const num = area.getAttribute('data-num');
+          backPositionsInput.value = num;
+        });
+      });
+    </script>
   </form>
 </body>
 </html>
