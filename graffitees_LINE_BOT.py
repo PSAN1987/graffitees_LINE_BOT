@@ -911,6 +911,26 @@ FORM_HTML = """
       font-size: 14px;
       color: #555;
     }
+
+    /* ▼▼ 追加: TシャツのSVGをサイズ調整するクラス ▼▼ */
+    .tshirt-svg-container {
+      width: 300px;  /* お好みのサイズ */
+      margin-bottom: 16px;
+      border: 1px solid #ccc;
+    }
+    .tshirt-svg {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+    .pos-label:hover {
+      cursor: pointer;
+      opacity: 0.7;
+    }
+    /* クリック時のハイライト用（簡易） */
+    .pos-label.selected {
+      fill: orange; /* 選択されたらオレンジにしてみる */
+    }
   </style>
 </head>
 <body>
@@ -1021,6 +1041,10 @@ FORM_HTML = """
     <label>サイズ(LLL):</label>
     <input type="number" name="size_lll">
 
+
+    <!-- =========================
+         ▼▼ 前面プリント ▼▼
+         ========================= -->
     <h3>プリント位置: 前</h3>
     <div class="radio-group">
       <label>
@@ -1043,6 +1067,41 @@ FORM_HTML = """
     <label>プリント位置データ(前): カタログの注文用紙に絵を描いて写真を撮影してアップロードしてください</label>
     <input type="file" name="position_data_front">
 
+
+    <!-- ▼▼ 追加: 「画像が無い場合の Tシャツ前面(①～⑨)選択」SVG ▼-->
+    <p>※前面にプリント画像が無い場合、下のTシャツをタップして番号を選択してください</p>
+    <input type="text" name="front_positions_selected" id="front_positions_selected" placeholder="前面で選んだ番号が表示されます" readonly>
+
+    <div class="tshirt-svg-container">
+      <svg viewBox="0 0 200 300" class="tshirt-svg">
+        <!-- 前面Tシャツの簡易図 -->
+        <rect x="30" y="10" width="140" height="280" fill="#ddd" />
+        <!-- ①～⑨の丸印を置く例 -->
+        <circle cx="60" cy="40" r="10" fill="white" stroke="black"
+          class="pos-label" data-num="1" />
+        <circle cx="100" cy="40" r="10" fill="white" stroke="black"
+          class="pos-label" data-num="2" />
+        <circle cx="140" cy="40" r="10" fill="white" stroke="black"
+          class="pos-label" data-num="3" />
+        <circle cx="60" cy="100" r="10" fill="white" stroke="black"
+          class="pos-label" data-num="4" />
+        <circle cx="140" cy="100" r="10" fill="white" stroke="black"
+          class="pos-label" data-num="5" />
+        <circle cx="100" cy="160" r="10" fill="white" stroke="black"
+          class="pos-label" data-num="6" />
+        <circle cx="60" cy="220" r="10" fill="white" stroke="black"
+          class="pos-label" data-num="7" />
+        <circle cx="100" cy="220" r="10" fill="white" stroke="black"
+          class="pos-label" data-num="8" />
+        <circle cx="140" cy="220" r="10" fill="white" stroke="black"
+          class="pos-label" data-num="9" />
+      </svg>
+    </div>
+
+
+    <!-- =========================
+         ▼▼ 背面プリント ▼▼
+         ========================= -->
     <h3>プリント位置: 後</h3>
     <div class="radio-group">
       <label>
@@ -1065,6 +1124,33 @@ FORM_HTML = """
     <label>プリント位置データ(後): カタログの注文用紙に絵を描いて写真を撮影してアップロードしてください</label>
     <input type="file" name="position_data_back">
 
+
+    <!-- ▼▼ 追加: 「画像が無い場合の Tシャツ背面(10～14)選択」SVG ▼-->
+    <p>※背面にプリント画像が無い場合、下のTシャツをタップして番号を選択してください</p>
+    <input type="text" name="back_positions_selected" id="back_positions_selected" placeholder="背面で選んだ番号が表示されます" readonly>
+
+    <div class="tshirt-svg-container">
+      <svg viewBox="0 0 200 300" class="tshirt-svg">
+        <!-- 背面Tシャツの簡易図 -->
+        <rect x="30" y="10" width="140" height="280" fill="#eee" />
+        <!-- 10～14の丸印を置く例 -->
+        <circle cx="100" cy="40" r="10" fill="white" stroke="black"
+          class="pos-label" data-num="10" />
+        <circle cx="100" cy="100" r="10" fill="white" stroke="black"
+          class="pos-label" data-num="11" />
+        <circle cx="60" cy="220" r="10" fill="white" stroke="black"
+          class="pos-label" data-num="12" />
+        <circle cx="100" cy="220" r="10" fill="white" stroke="black"
+          class="pos-label" data-num="13" />
+        <circle cx="140" cy="220" r="10" fill="white" stroke="black"
+          class="pos-label" data-num="14" />
+      </svg>
+    </div>
+
+
+    <!-- =========================
+         ▼▼ その他 ▼▼
+         ========================= -->
     <h3>プリント位置: その他</h3>
     <div class="radio-group">
       <label>
@@ -1087,9 +1173,10 @@ FORM_HTML = """
     <label>プリント位置データ(その他): カタログの注文用紙に絵を描いて写真を撮影してアップロードしてください</label>
     <input type="file" name="position_data_other">
 
+
     <!-- ★★★ 背ネーム・背番号プリント（複数選択チェックボックス） ★★★ -->
     <h3>背ネーム・背番号プリント</h3>
-    <p>※複数選択可能</p>
+    <p class="instruction">※複数選択可能</p>
     <div class="checkbox-group">
       <label>
         <input type="checkbox" name="back_name_number_print[]" value="ネーム&背番号セット"> ネーム&背番号セット
@@ -1124,11 +1211,42 @@ FORM_HTML = """
     <input type="file" name="additional_design_image">
 
     <button type="submit">送信</button>
+
+
+    <!-- ▼▼ 追記: JavaScriptで①～⑭をクリックした際に hidden/input に値を設定する ▼-->
+    <script>
+      // 前面①～⑨クリック時
+      const frontPositions = document.querySelectorAll('.tshirt-svg-container:nth-of-type(1) .pos-label');
+      const frontInput = document.getElementById('front_positions_selected');
+      frontPositions.forEach(el => {
+        el.addEventListener('click', () => {
+          // まず全部のselectedを外す
+          frontPositions.forEach(p => p.classList.remove('selected'));
+          // 選択された要素だけハイライト
+          el.classList.add('selected');
+
+          const num = el.getAttribute('data-num');
+          frontInput.value = num;
+        });
+      });
+
+      // 背面10～14クリック時
+      const backSvgContainer = document.querySelectorAll('.tshirt-svg-container:nth-of-type(2) .pos-label');
+      const backInput = document.getElementById('back_positions_selected');
+      backSvgContainer.forEach(el => {
+        el.addEventListener('click', () => {
+          backSvgContainer.forEach(p => p.classList.remove('selected'));
+          el.classList.add('selected');
+
+          const num = el.getAttribute('data-num');
+          backInput.value = num;
+        });
+      });
+    </script>
   </form>
 </body>
 </html>
 """
-
 @app.route("/webform", methods=["GET"])
 def show_webform():
     user_id = request.args.get("user_id", "")
