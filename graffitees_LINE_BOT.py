@@ -314,7 +314,6 @@ PRICE_TABLE = [
     ("ジップアップライトパーカー", 100, 500, "通常", 2910, 300, 300, 550),
 ]
 
-# こちらは既存の簡易版計算ロジック(参考)
 def calc_total_price(
     product_name: str,
     quantity: int,
@@ -1230,18 +1229,14 @@ def calculate_order_price(
 
     # プリントカラー数チェック: 2色以上なら add_color 加算
     def count_colors(color_str):
-        # カンマ区切り想定例: "赤,白" => 2色
-        # またはスペース区切りなど実際の入力ルール次第だが、簡易実装
         if not color_str:
             return 0
-        # カンマか改行かスペースあたりで分割
-        # ただし厳密には正規表現等で要調整
         parts = [p.strip() for p in color_str.replace("、",",").replace("\n"," ").split(",")]
         colors = []
         for prt in parts:
             sub_parts = prt.split()
             for sub in sub_parts:
-                if sub:  # 空でなければ
+                if sub:
                     colors.append(sub)
         return len(colors)
 
@@ -1256,16 +1251,13 @@ def calculate_order_price(
     if other_colors_count >= 2:
         extra_price += add_color * total_qty
 
-    # 7. design_sample_back があれば addPosition
-    # 8. design_sample_other があれば addPosition
-    if design_sample_back:  # 空文字じゃなければ
+    # design_sample_back があれば addPosition
+    if design_sample_back:
         extra_price += add_position * total_qty
     if design_sample_other:
         extra_price += add_position * total_qty
 
-    # 9. back_name_number_print_options
-    #   例: "ネーム&背番号セット,番号(大)" のようにカンマ区切りで入っていると仮定
-    #   以下、各種料金はサンプル(必要に応じて修正)
+    # 背ネーム・背番号プリントオプション
     name_number_cost_map = {
         "ネーム&背番号セット": 900,
         "ネーム(大)": 550,
@@ -1274,7 +1266,6 @@ def calculate_order_price(
         "番号(小)": 250
     }
     if back_name_number_print_options:
-        # カンマ区切りなどを分割
         opts = [o.strip() for o in back_name_number_print_options.split(",")]
         for opt in opts:
             if opt in name_number_cost_map:
@@ -1357,8 +1348,12 @@ def webform_submit():
     additional_design_image_url = upload_file_to_s3(additional_design_image, S3_BUCKET_NAME, prefix="uploads/")
 
     # ▼▼ 背ネーム・背番号プリント (複数選択) ▼▼
-    selected_back_name_number_print = form.getlist("back_name_number_print[]")  # 複数可
+    selected_back_name_number_print = form.getlist("back_name_number_print[]")
     back_name_number_print_options = ",".join(selected_back_name_number_print) if selected_back_name_number_print else None
+
+    # ★★★ ここで「本注文見積番号」を生成 ★★★
+    import time
+    order_quote_number = f"O{int(time.time())}"
 
     # DBに保存 (orders)
     with get_db_connection() as conn:
@@ -1417,6 +1412,10 @@ def webform_submit():
                 additional_design_image_url,
 
                 back_name_number_print_options,
+
+                -- ★ 新たに本注文見積番号を追加 ★
+                order_quote_number,
+
                 created_at
             ) VALUES (
                 %s, %s, %s, %s, %s,
@@ -1436,6 +1435,9 @@ def webform_submit():
                 %s,
 
                 %s,
+
+                %s,
+
                 NOW()
             )
             RETURNING id
@@ -1492,12 +1494,15 @@ def webform_submit():
                 additional_design_position,
                 additional_design_image_url,
 
-                back_name_number_print_options
+                back_name_number_print_options,
+
+                order_quote_number,  # 本注文見積番号
+
             )
             cur.execute(sql, params)
             new_id = cur.fetchone()[0]
         conn.commit()
-        logger.info(f"Inserted order id={new_id}")
+        logger.info(f"Inserted order id={new_id}, order_quote_number={order_quote_number}")
 
     # 見積→注文へのコンバージョンを示すため、estimatesテーブル側の order_placed = true に更新しておく例
     mark_estimate_as_ordered(user_id)
@@ -1521,17 +1526,14 @@ def webform_submit():
         back_name_number_print_options or ""
     )
 
-    # 学校名や製品情報をまとめて通知
-    # プリント位置情報は「前/後/その他」に実際に何が入力されたかで変わりそうですが簡易版として
     used_positions = []
-    if print_color_front:  # 前面に何かプリントカラーあるなら
+    if print_color_front:
         used_positions.append("前")
     if print_color_back:
         used_positions.append("後")
     if print_color_other:
         used_positions.append("その他")
 
-    # 背ネーム背番号情報
     bn_options = back_name_number_print_options or "なし"
 
     push_text = (
@@ -1544,6 +1546,7 @@ def webform_submit():
         f"割引種別: {discount_type}\n"
         f"合計金額: ¥{total_price:,}\n"
         f"1枚あたり: ¥{unit_price_calc:,}\n"
+        f"本注文見積番号: {order_quote_number}\n"  # ★ここで表示
         "担当者より後ほどご連絡いたします。"
     )
     try:
@@ -2025,6 +2028,10 @@ def paper_order_form_submit():
     selected_back_name_number_print = form.getlist("back_name_number_print[]")
     back_name_number_print_options = ",".join(selected_back_name_number_print) if selected_back_name_number_print else None
 
+    # ★★★ ここで「本注文見積番号」を生成 ★★★
+    import time
+    order_quote_number = f"O{int(time.time())}"
+
     # DBに保存 (orders)
     with get_db_connection() as conn:
         with conn.cursor() as cur:
@@ -2082,6 +2089,10 @@ def paper_order_form_submit():
                 additional_design_image_url,
 
                 back_name_number_print_options,
+
+                -- ★ 新たに本注文見積番号を追加 ★
+                order_quote_number,
+
                 created_at
             ) VALUES (
                 %s, %s, %s, %s, %s,
@@ -2101,6 +2112,9 @@ def paper_order_form_submit():
                 %s,
 
                 %s,
+
+                %s,
+
                 NOW()
             )
             RETURNING id
@@ -2157,17 +2171,20 @@ def paper_order_form_submit():
                 additional_design_position,
                 additional_design_image_url,
 
-                back_name_number_print_options
+                back_name_number_print_options,
+
+                order_quote_number,  # 本注文見積番号
+
             )
             cur.execute(sql, params)
             new_id = cur.fetchone()[0]
         conn.commit()
-        logger.info(f"Inserted paper_order id={new_id}")
+        logger.info(f"Inserted paper_order id={new_id}, order_quote_number={order_quote_number}")
 
     # 見積→注文へのコンバージョンを示すため、estimatesテーブル側の order_placed = true に更新
     mark_estimate_as_ordered(user_id)
 
-    # ★★★ ここで注文価格計算をして、LINEに通知する ★★★
+    # ★★★ 注文価格計算 → LINE通知 ★★★
     (discount_type, total_price, unit_price_calc) = calculate_order_price(
         product_name,
         size_ss or 0,
@@ -2186,7 +2203,6 @@ def paper_order_form_submit():
         back_name_number_print_options or ""
     )
 
-    # プリント位置情報まとめ(簡易)
     used_positions = []
     if print_color_front:
         used_positions.append("前")
@@ -2207,6 +2223,7 @@ def paper_order_form_submit():
         f"割引種別: {discount_type}\n"
         f"合計金額: ¥{total_price:,}\n"
         f"1枚あたり: ¥{unit_price_calc:,}\n"
+        f"本注文見積番号: {order_quote_number}\n"  # ★追加
         "担当者より後ほどご連絡いたします。"
     )
     try:
