@@ -587,47 +587,65 @@ def handle_image_message(event):
     if user_id not in user_states or user_states[user_id].get("state") != "await_order_form_photo":
         return
 
-    # 画像取得
-    message_id = event.message.id
-    message_content = line_bot_api.get_message_content(message_id)
-    
-    # 一時的にローカル保存する
-    temp_filename = f"temp_{user_id}_{message_id}.jpg"
-    with open(temp_filename, "wb") as fd:
-        for chunk in message_content.iter_content():
-            fd.write(chunk)
-
-    # ローカルに保存した画像を使って Google Vision API OCR 処理
-    ocr_text = google_vision_ocr(temp_filename)
-    logger.info(f"[DEBUG] OCR result: {ocr_text}")
-
-    # OpenAI API を呼び出して、webフォーム各項目に対応しそうな値を推定
-    form_estimated_data = openai_extract_form_data(ocr_text)
-    logger.info(f"[DEBUG] form_estimated_data from OpenAI: {form_estimated_data}")
-
-    # 推定結果をユーザーごとの状態に保持しておき、フォーム表示の際に使う
-    user_states[user_id]["paper_form_data"] = form_estimated_data
-    # ステート終了
-    del user_states[user_id]["state"]
-
-    # ユーザーにフォームURLを案内し、修正・送信を促す
-    paper_form_url = f"https://{request.host}/paper_order_form?user_id={user_id}"
+    # (2)最初に「10秒程度お待ちください」メッセージを返信
     line_bot_api.reply_message(
         event.reply_token,
-        TextSendMessage(
-            text=(
-                "注文用紙の写真から情報を読み取りました。\n"
-                "こちらのフォームに自動入力しましたので、内容をご確認・修正の上送信してください。\n"
-                f"{paper_form_url}"
-            )
-        )
+        TextSendMessage(text="画像を受信しました。OCR処理を行いますので、10秒程度お待ちください...")
     )
 
-    # ローカルファイル削除(任意)
+    # このあとOCR/OpenAI処理を試みる (push_messageで結果を通知)
     try:
-        os.remove(temp_filename)
-    except Exception:
-        pass
+        # 画像取得
+        message_id = event.message.id
+        message_content = line_bot_api.get_message_content(message_id)
+
+        # 一時的にローカル保存する
+        temp_filename = f"temp_{user_id}_{message_id}.jpg"
+        with open(temp_filename, "wb") as fd:
+            for chunk in message_content.iter_content():
+                fd.write(chunk)
+
+        # ローカルに保存した画像を使って Google Vision API OCR 処理
+        ocr_text = google_vision_ocr(temp_filename)
+        logger.info(f"[DEBUG] OCR result: {ocr_text}")
+
+        # OpenAI API を呼び出して、webフォーム各項目に対応しそうな値を推定
+        form_estimated_data = openai_extract_form_data(ocr_text)
+        logger.info(f"[DEBUG] form_estimated_data from OpenAI: {form_estimated_data}")
+
+        # 推定結果をユーザーごとの状態に保持しておき、フォーム表示の際に使う
+        user_states[user_id]["paper_form_data"] = form_estimated_data
+        # ステート終了
+        del user_states[user_id]["state"]
+
+        # ユーザーにフォームURLを案内し、修正・送信を促す (push_message)
+        paper_form_url = f"https://{request.host}/paper_order_form?user_id={user_id}"
+        line_bot_api.push_message(
+            to=user_id,
+            messages=TextSendMessage(
+                text=(
+                    "注文用紙の写真から情報を読み取りました。\n"
+                    "こちらのフォームに自動入力しましたので、内容をご確認・修正の上送信してください。\n"
+                    f"{paper_form_url}"
+                )
+            )
+        )
+
+        # ローカルファイル削除(任意)
+        try:
+            os.remove(temp_filename)
+        except Exception:
+            pass
+
+    except Exception as e:
+        logger.error(f"[ERROR in handle_image_message] {e}", exc_info=True)
+        # 失敗時、push_messageでリトライ依頼
+        line_bot_api.push_message(
+            to=user_id,
+            messages=TextSendMessage(
+                text="申し訳ありませんが、もう一度写真を送っていただけますか？"
+            )
+        )
 
 ###################################
 # (K) LINEハンドラ: PostbackEvent
@@ -745,7 +763,7 @@ def handle_postback(event):
         pos = s['print_position']
         color_opt = s['color_options']
         total_price = calc_total_price(product, qty, early_disc, pos, color_opt)
-        
+
         # 1枚あたりの単価(ざっくり整数に)
         if qty > 0:
             unit_price = total_price // qty
@@ -1243,7 +1261,6 @@ FORM_HTML = """
       </label>
     </div>
 
-    <!-- 追加のデザインイメージデータ -->
     <h3>追加のデザインイメージデータ</h3>
     <p class="instruction">プリント位置(前, 左胸, 右胸, 背中, 左袖, 右袖)を選択し、アップロードできます。</p>
     <label>プリント位置:</label>
@@ -1522,7 +1539,26 @@ def webform_submit():
     import time
     order_quote_number = f"O{int(time.time())}"
 
-    # DBに保存 (orders)
+    # ★★★ 注文価格計算をして、合計金額 & 単価を取得 ★★★
+    (discount_type, total_price, unit_price_calc) = calculate_order_price(
+        product_name,
+        size_ss or 0,
+        size_s or 0,
+        size_m or 0,
+        size_l or 0,
+        size_ll or 0,
+        size_lll or 0,
+        application_date or "",
+        use_date or "",
+        print_color_front or "",
+        print_color_back or "",
+        print_color_other or "",
+        design_sample_back or "",
+        design_sample_other or "",
+        back_name_number_print_options or ""
+    )
+
+    # DBに保存 (orders) -- (1) order_total_price, order_unit_price を追加
     with get_db_connection() as conn:
         with conn.cursor() as cur:
             sql = """
@@ -1580,7 +1616,9 @@ def webform_submit():
 
                 back_name_number_print_options,
 
-                -- ★ 新たに本注文見積番号を追加 ★
+                order_total_price,
+                order_unit_price,
+
                 order_quote_number,
 
                 created_at
@@ -1601,6 +1639,9 @@ def webform_submit():
                 %s,
                 %s,
 
+                %s,
+
+                %s,
                 %s,
 
                 %s,
@@ -1663,8 +1704,10 @@ def webform_submit():
 
                 back_name_number_print_options,
 
-                order_quote_number,  # 本注文見積番号
+                total_price,
+                unit_price_calc,
 
+                order_quote_number
             )
             cur.execute(sql, params)
             new_id = cur.fetchone()[0]
@@ -1675,24 +1718,6 @@ def webform_submit():
     mark_estimate_as_ordered(user_id)
 
     # ★★★ ここで注文価格計算をして、LINEに通知する ★★★
-    (discount_type, total_price, unit_price_calc) = calculate_order_price(
-        product_name,
-        size_ss or 0,
-        size_s or 0,
-        size_m or 0,
-        size_l or 0,
-        size_ll or 0,
-        size_lll or 0,
-        application_date or "",
-        use_date or "",
-        print_color_front or "",
-        print_color_back or "",
-        print_color_other or "",
-        design_sample_back or "",
-        design_sample_other or "",
-        back_name_number_print_options or ""
-    )
-
     used_positions = []
     if print_color_front:
         used_positions.append("前")
@@ -1713,7 +1738,7 @@ def webform_submit():
         f"割引種別: {discount_type}\n"
         f"合計金額: ¥{total_price:,}\n"
         f"1枚あたり: ¥{unit_price_calc:,}\n"
-        f"本注文見積番号: {order_quote_number}\n"  # ★ここで表示
+        f"本注文見積番号: {order_quote_number}\n"
         "担当者より後ほどご連絡いたします。"
     )
     try:
@@ -2081,31 +2106,40 @@ PAPER_FORM_HTML = """
           Z
         "></path>
 
-        <circle cx="60" cy="50" r="10" class="click-area" data-num="1"></circle>
+        <circle cx="60" cy="50" r="10"
+                class="click-area" data-num="1"></circle>
         <text x="60" y="50" class="area-label">1</text>
 
-        <circle cx="240" cy="50" r="10" class="click-area" data-num="2"></circle>
+        <circle cx="240" cy="50" r="10"
+                class="click-area" data-num="2"></circle>
         <text x="240" y="50" class="area-label">2</text>
 
-        <circle cx="120" cy="80" r="10" class="click-area" data-num="3"></circle>
+        <circle cx="120" cy="80" r="10"
+                class="click-area" data-num="3"></circle>
         <text x="120" y="80" class="area-label">3</text>
 
-        <circle cx="150" cy="80" r="10" class="click-area" data-num="4"></circle>
+        <circle cx="150" cy="80" r="10"
+                class="click-area" data-num="4"></circle>
         <text x="150" y="80" class="area-label">4</text>
 
-        <circle cx="180" cy="80" r="10" class="click-area" data-num="5"></circle>
+        <circle cx="180" cy="80" r="10"
+                class="click-area" data-num="5"></circle>
         <text x="180" y="80" class="area-label">5</text>
 
-        <circle cx="150" cy="120" r="10" class="click-area" data-num="6"></circle>
+        <circle cx="150" cy="120" r="10"
+                class="click-area" data-num="6"></circle>
         <text x="150" y="120" class="area-label">6</text>
 
-        <circle cx="100" cy="200" r="10" class="click-area" data-num="7"></circle>
+        <circle cx="100" cy="200" r="10"
+                class="click-area" data-num="7"></circle>
         <text x="100" y="200" class="area-label">7</text>
 
-        <circle cx="150" cy="200" r="10" class="click-area" data-num="8"></circle>
+        <circle cx="150" cy="200" r="10"
+                class="click-area" data-num="8"></circle>
         <text x="150" y="200" class="area-label">8</text>
 
-        <circle cx="200" cy="200" r="10" class="click-area" data-num="9"></circle>
+        <circle cx="200" cy="200" r="10"
+                class="click-area" data-num="9"></circle>
         <text x="200" y="200" class="area-label">9</text>
       </svg>
     </div>
@@ -2398,7 +2432,26 @@ def paper_order_form_submit():
     import time
     order_quote_number = f"O{int(time.time())}"
 
-    # DBに保存 (orders)
+    # ★★★ 注文価格計算 ★★★
+    (discount_type, total_price, unit_price_calc) = calculate_order_price(
+        product_name,
+        size_ss or 0,
+        size_s or 0,
+        size_m or 0,
+        size_l or 0,
+        size_ll or 0,
+        size_lll or 0,
+        application_date or "",
+        use_date or "",
+        print_color_front or "",
+        print_color_back or "",
+        print_color_other or "",
+        design_sample_back or "",
+        design_sample_other or "",
+        back_name_number_print_options or ""
+    )
+
+    # DBに保存 (orders) -- (1) order_total_price, order_unit_price を追加
     with get_db_connection() as conn:
         with conn.cursor() as cur:
             sql = """
@@ -2456,7 +2509,9 @@ def paper_order_form_submit():
 
                 back_name_number_print_options,
 
-                -- ★ 新たに本注文見積番号を追加 ★
+                order_total_price,
+                order_unit_price,
+
                 order_quote_number,
 
                 created_at
@@ -2477,6 +2532,9 @@ def paper_order_form_submit():
                 %s,
                 %s,
 
+                %s,
+
+                %s,
                 %s,
 
                 %s,
@@ -2539,8 +2597,10 @@ def paper_order_form_submit():
 
                 back_name_number_print_options,
 
-                order_quote_number,  # 本注文見積番号
+                total_price,
+                unit_price_calc,
 
+                order_quote_number
             )
             cur.execute(sql, params)
             new_id = cur.fetchone()[0]
@@ -2550,25 +2610,7 @@ def paper_order_form_submit():
     # 見積→注文へのコンバージョンを示すため、estimatesテーブル側の order_placed = true に更新
     mark_estimate_as_ordered(user_id)
 
-    # ★★★ 注文価格計算 → LINE通知 ★★★
-    (discount_type, total_price, unit_price_calc) = calculate_order_price(
-        product_name,
-        size_ss or 0,
-        size_s or 0,
-        size_m or 0,
-        size_l or 0,
-        size_ll or 0,
-        size_lll or 0,
-        application_date or "",
-        use_date or "",
-        print_color_front or "",
-        print_color_back or "",
-        print_color_other or "",
-        design_sample_back or "",
-        design_sample_other or "",
-        back_name_number_print_options or ""
-    )
-
+    # ★★★ 注文価格計算結果 → LINE通知 ★★★
     used_positions = []
     if print_color_front:
         used_positions.append("前")
@@ -2589,7 +2631,7 @@ def paper_order_form_submit():
         f"割引種別: {discount_type}\n"
         f"合計金額: ¥{total_price:,}\n"
         f"1枚あたり: ¥{unit_price_calc:,}\n"
-        f"本注文見積番号: {order_quote_number}\n"  # ★追加
+        f"本注文見積番号: {order_quote_number}\n"
         "担当者より後ほどご連絡いたします。"
     )
     try:
