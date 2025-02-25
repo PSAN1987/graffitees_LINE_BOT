@@ -691,7 +691,7 @@ def handle_postback(event):
         }
         line_bot_api.reply_message(
             event.reply_token,
-            TextSendMessage(text="注文用紙の写真を送ってください。\n(スマホで撮影したものでもOKです)")
+            TextSendMessage(text="注文用紙の写真を送ってください。(スマホで撮影したものでもOKですが、フォーム形式を無視すると認識率が下がります。)")
         )
         return
 
