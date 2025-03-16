@@ -2750,61 +2750,39 @@ import io
 
 def generate_csv_and_upload(order_quote_number: str) -> str:
     """
-    指定の order_quote_number に該当する注文データを1件だけCSV化し、
+    指定の order_quote_number に該当する注文データ（ordersテーブルの全カラム）を1件だけCSV化し、
     S3にアップロードして、その公開URLを返す。
     """
-    # 1) DBから該当レコードを取得
+    # 1) DBから該当レコードを取得 (すべてのカラム)
     with get_db_connection() as conn:
         with conn.cursor() as cur:
             sql = """
-            SELECT
-                order_quote_number,
-                school_name,
-                product_name,
-                product_color,
-                size_ss,
-                size_s,
-                size_m,
-                size_l,
-                size_ll,
-                size_lll,
-                order_total_price,
-                order_unit_price,
-                created_at
-            FROM orders
+            SELECT * FROM orders
             WHERE order_quote_number = %s
             LIMIT 1
             """
             cur.execute(sql, (order_quote_number,))
             row = cur.fetchone()
+            # 列名も取得
+            col_names = [desc[0] for desc in cur.description]
 
     if not row:
         # 見つからなかったらエラー
         raise ValueError(f"注文番号 {order_quote_number} は見つかりませんでした。")
 
     # 2) CSVをメモリ上で作成
+    import io
     import csv
+
     output = io.StringIO()
     writer = csv.writer(output)
-    # ヘッダ行
-    writer.writerow([
-        "order_quote_number",
-        "school_name",
-        "product_name",
-        "product_color",
-        "size_ss",
-        "size_s",
-        "size_m",
-        "size_l",
-        "size_ll",
-        "size_lll",
-        "order_total_price",
-        "order_unit_price",
-        "created_at"
-    ])
+
+    # ヘッダ行を書き込み
+    writer.writerow(col_names)
     # データ行 (1件のみ)
     writer.writerow(row)
 
+    # CSVデータをバイナリに
     csv_bytes = output.getvalue().encode("utf-8")
 
     # 3) S3にアップロード
