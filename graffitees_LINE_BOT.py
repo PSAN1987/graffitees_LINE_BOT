@@ -516,6 +516,30 @@ def handle_text_message(event):
     user_input = event.message.text.strip()
     logger.info(f"[DEBUG] user_input: '{user_input}'")
 
+    # ▼▼ 追加: 注文番号らしきもの(O123...) or (Q123...)の場合にCSVを返す ▼▼
+    if (user_input.startswith("O") or user_input.startswith("Q")) and len(user_input) > 1:
+        try:
+            csv_url = generate_csv_and_upload(user_input)  # 下部で定義するヘルパー関数
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text=f"こちらからCSVをダウンロードできます。\n{csv_url}")
+            )
+            return
+        except ValueError as ve:
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text=str(ve))
+            )
+            return
+        except Exception as e:
+            logger.error(f"Error while generating CSV: {e}", exc_info=True)
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text="CSV作成でエラーが発生しました。")
+            )
+            return
+    # ▲▲ 追加ここまで ▲▲
+
     if user_input == "モード選択":
         flex = create_mode_selection_flex()
         line_bot_api.reply_message(event.reply_token, flex)
@@ -959,7 +983,7 @@ FORM_HTML = """
       fill: orange;
     }
     .area-label {
-      pointer-events: none; 
+      pointer-events: none;
       font-size: 12px;
       text-anchor: middle;
       alignment-baseline: middle;
@@ -2106,40 +2130,31 @@ PAPER_FORM_HTML = """
           Z
         "></path>
 
-        <circle cx="60" cy="50" r="10"
-                class="click-area" data-num="1"></circle>
+        <circle cx="60" cy="50" r="10" class="click-area" data-num="1"></circle>
         <text x="60" y="50" class="area-label">1</text>
 
-        <circle cx="240" cy="50" r="10"
-                class="click-area" data-num="2"></circle>
+        <circle cx="240" cy="50" r="10" class="click-area" data-num="2"></circle>
         <text x="240" y="50" class="area-label">2</text>
 
-        <circle cx="120" cy="80" r="10"
-                class="click-area" data-num="3"></circle>
+        <circle cx="120" cy="80" r="10" class="click-area" data-num="3"></circle>
         <text x="120" y="80" class="area-label">3</text>
 
-        <circle cx="150" cy="80" r="10"
-                class="click-area" data-num="4"></circle>
+        <circle cx="150" cy="80" r="10" class="click-area" data-num="4"></circle>
         <text x="150" y="80" class="area-label">4</text>
 
-        <circle cx="180" cy="80" r="10"
-                class="click-area" data-num="5"></circle>
+        <circle cx="180" cy="80" r="10" class="click-area" data-num="5"></circle>
         <text x="180" y="80" class="area-label">5</text>
 
-        <circle cx="150" cy="120" r="10"
-                class="click-area" data-num="6"></circle>
+        <circle cx="150" cy="120" r="10" class="click-area" data-num="6"></circle>
         <text x="150" y="120" class="area-label">6</text>
 
-        <circle cx="100" cy="200" r="10"
-                class="click-area" data-num="7"></circle>
+        <circle cx="100" cy="200" r="10" class="click-area" data-num="7"></circle>
         <text x="100" y="200" class="area-label">7</text>
 
-        <circle cx="150" cy="200" r="10"
-                class="click-area" data-num="8"></circle>
+        <circle cx="150" cy="200" r="10" class="click-area" data-num="8"></circle>
         <text x="150" y="200" class="area-label">8</text>
 
-        <circle cx="200" cy="200" r="10"
-                class="click-area" data-num="9"></circle>
+        <circle cx="200" cy="200" r="10" class="click-area" data-num="9"></circle>
         <text x="200" y="200" class="area-label">9</text>
       </svg>
     </div>
@@ -2207,24 +2222,19 @@ PAPER_FORM_HTML = """
           Z
         "></path>
 
-        <circle cx="150" cy="50" r="10"
-                class="click-area" data-num="10"></circle>
+        <circle cx="150" cy="50" r="10" class="click-area" data-num="10"></circle>
         <text x="150" y="50" class="area-label">10</text>
 
-        <circle cx="150" cy="100" r="10"
-                class="click-area" data-num="11"></circle>
+        <circle cx="150" cy="100" r="10" class="click-area" data-num="11"></circle>
         <text x="150" y="100" class="area-label">11</text>
 
-        <circle cx="100" cy="200" r="10"
-                class="click-area" data-num="12"></circle>
+        <circle cx="100" cy="200" r="10" class="click-area" data-num="12"></circle>
         <text x="100" y="200" class="area-label">12</text>
 
-        <circle cx="150" cy="200" r="10"
-                class="click-area" data-num="13"></circle>
+        <circle cx="150" cy="200" r="10" class="click-area" data-num="13"></circle>
         <text x="150" y="200" class="area-label">13</text>
 
-        <circle cx="200" cy="200" r="10"
-                class="click-area" data-num="14"></circle>
+        <circle cx="200" cy="200" r="10" class="click-area" data-num="14"></circle>
         <text x="200" y="200" class="area-label">14</text>
       </svg>
     </div>
@@ -2732,6 +2742,85 @@ def send_reminders():
                     )
 
     return "リマインド送信完了"
+
+###################################
+# ▼▼ 追加: 注文番号からCSV化→S3アップロード→URL返す関数
+###################################
+import io
+
+def generate_csv_and_upload(order_quote_number: str) -> str:
+    """
+    指定の order_quote_number に該当する注文データを1件だけCSV化し、
+    S3にアップロードして、その公開URLを返す。
+    """
+    # 1) DBから該当レコードを取得
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            sql = """
+            SELECT
+                order_quote_number,
+                school_name,
+                product_name,
+                product_color,
+                size_ss,
+                size_s,
+                size_m,
+                size_l,
+                size_ll,
+                size_lll,
+                order_total_price,
+                order_unit_price,
+                created_at
+            FROM orders
+            WHERE order_quote_number = %s
+            LIMIT 1
+            """
+            cur.execute(sql, (order_quote_number,))
+            row = cur.fetchone()
+
+    if not row:
+        # 見つからなかったらエラー
+        raise ValueError(f"注文番号 {order_quote_number} は見つかりませんでした。")
+
+    # 2) CSVをメモリ上で作成
+    import csv
+    output = io.StringIO()
+    writer = csv.writer(output)
+    # ヘッダ行
+    writer.writerow([
+        "order_quote_number",
+        "school_name",
+        "product_name",
+        "product_color",
+        "size_ss",
+        "size_s",
+        "size_m",
+        "size_l",
+        "size_ll",
+        "size_lll",
+        "order_total_price",
+        "order_unit_price",
+        "created_at"
+    ])
+    # データ行 (1件のみ)
+    writer.writerow(row)
+
+    csv_bytes = output.getvalue().encode("utf-8")
+
+    # 3) S3にアップロード
+    s3 = boto3.client(
+        's3',
+        aws_access_key_id=AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=AWS_SECRET_ACCESS_KEY
+    )
+    unique_filename = f"{order_quote_number}_{uuid.uuid4()}.csv"
+    s3_key = f"csv_exports/{unique_filename}"
+
+    s3.upload_fileobj(io.BytesIO(csv_bytes), S3_BUCKET_NAME, s3_key)
+
+    # パブリックURL (バケットポリシー等で public read が許可されている前提)
+    csv_url = f"https://{S3_BUCKET_NAME}.s3.amazonaws.com/{s3_key}"
+    return csv_url
 
 ###################################
 # Flask起動 (既存)
