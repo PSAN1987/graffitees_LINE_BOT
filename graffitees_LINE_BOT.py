@@ -792,7 +792,7 @@ def line_callback():
     body = request.get_data(as_text=True)
 
     # --- ログ出力1: 転送コード到達確認 ---
-    app.logger.info("==> Forwarding code reached. Attempting to forward the JSON body...")
+    print("==> Forwarding code reached. Attempting to forward the JSON body...")
 
     # ここでLINE受信したJSONを転送
     response = requests.post(
@@ -805,7 +805,7 @@ def line_callback():
     )
 
     # --- ログ出力2: 転送後のレスポンス確認 ---
-    app.logger.info(f"==> Forward result: status={response.status_code}, response={response.text}")
+    print(f"==> Forward result: status={response.status_code}, response={response.text}")
 
     try:
         handler.handle(body, signature)
