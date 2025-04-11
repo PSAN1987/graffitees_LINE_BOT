@@ -791,7 +791,10 @@ def line_callback():
     signature = request.headers["X-Line-Signature"]
     body = request.get_data(as_text=True)
 
-    # ① requests.postの戻り値をresponseに代入する
+    # --- ログ出力1: 転送コード到達確認 ---
+    app.logger.info("==> Forwarding code reached. Attempting to forward the JSON body...")
+
+    # ここでLINE受信したJSONを転送
     response = requests.post(
         "https://watasiino.com/line/webhook.php",
         data=body,
@@ -801,8 +804,8 @@ def line_callback():
         }
     )
 
-    # ② ログ出力でresponseを利用する
-    app.logger.info(f"[ForwardResult] status={response.status_code}, response={response.text}")
+    # --- ログ出力2: 転送後のレスポンス確認 ---
+    app.logger.info(f"==> Forward result: status={response.status_code}, response={response.text}")
 
     try:
         handler.handle(body, signature)
