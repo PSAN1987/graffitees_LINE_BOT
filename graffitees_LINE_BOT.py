@@ -866,7 +866,7 @@ def send_catalog_info(event: MessageEvent):
         "https://www.tiktok.com/@graffitees_045\n\n"
         "フォロー後、下記のフォームからお申込みください👇\n"
         "📩 カタログ申込みフォーム\n"
-        "https://catalog-bot-1.onrender.com/catalog_form\n"
+        "https://graffitees-line-bot.onrender.com/catalog_form\n"
         "⚠️ 注意：サブアカウントや重複申込みはご遠慮ください。\n\n"
         "【カタログ発送時期】\n"
         "📅 2025年4月中旬より郵送で発送予定です。\n\n"
