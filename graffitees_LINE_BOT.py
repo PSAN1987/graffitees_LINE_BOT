@@ -4,6 +4,10 @@ import time
 from datetime import datetime
 import pytz
 
+# 追加 -----------------------------------
+import requests
+# ----------------------------------------
+
 import gspread
 from flask import Flask, render_template_string, request, session
 import uuid
@@ -786,7 +790,22 @@ def flex_inquiry():
 def line_callback():
     signature = request.headers["X-Line-Signature"]
     body = request.get_data(as_text=True)
-
+    # --- ここでJSONを転送 ---
+    
+    # 「受け取った JSON 本文をそのまま」POST方式、Content-Type: application/json、
+    # ヘッダー「X-WEBHOOK-SECRET: bfc23a884fc214d3b021b81c6d85e0f4」を付与
+    requests.post(
+        "https://watasiino.com/line/webhook.php",
+        data=body,  # JSON文字列をそのまま転送
+        headers={
+            "Content-Type": "application/json",
+            "X-WEBHOOK-SECRET": "bfc23a884fc214d3b021b81c6d85e0f4"
+        }
+    )
+    # ----------------------
+    # ログ出力例
+    app.logger.info(f"[ForwardResult] status={response.status_code}, response={response.text}")
+    
     try:
         handler.handle(body, signature)
     except InvalidSignatureError:
