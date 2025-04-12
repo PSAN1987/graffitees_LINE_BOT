@@ -9,6 +9,10 @@ from flask import Flask, render_template_string, request, session
 import uuid
 from oauth2client.service_account import ServiceAccountCredentials
 
+# 追加 -----------------------------------
+import requests
+# ----------------------------------------
+
 # line-bot-sdk v2 系
 from linebot import LineBotApi, WebhookHandler
 from linebot.exceptions import InvalidSignatureError
