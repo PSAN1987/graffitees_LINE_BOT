@@ -4,10 +4,6 @@ import time
 from datetime import datetime
 import pytz
 
-# 追加 -----------------------------------
-import requests
-# ----------------------------------------
-
 import gspread
 from flask import Flask, render_template_string, request, session
 import uuid
@@ -94,11 +90,14 @@ def write_to_spreadsheet_for_catalog(form_data: dict):
     jst = pytz.timezone('Asia/Tokyo')
     now_jst_str = datetime.now(jst).strftime("%Y/%m/%d %H:%M:%S")
 
+    # address_1 と address_2 を合体して1つのセルに
+    full_address = f"{form_data.get('address_1', '')} {form_data.get('address_2', '')}".strip()
+
     new_row = [
-        now_jst_str,  # 先頭に日時を追加
+        now_jst_str,  # 先頭に日時
         form_data.get("name", ""),
         form_data.get("postal_code", ""),
-        form_data.get("address", ""),
+        full_address,  # 合体した住所
         form_data.get("phone", ""),
         form_data.get("email", ""),
         form_data.get("sns_account", ""),
@@ -106,7 +105,7 @@ def write_to_spreadsheet_for_catalog(form_data: dict):
         form_data.get("other", ""),
     ]
     worksheet.append_row(new_row, value_input_option="USER_ENTERED")
-
+    
 
 # -----------------------
 # 簡易見積用データ構造
@@ -791,22 +790,6 @@ def line_callback():
     signature = request.headers["X-Line-Signature"]
     body = request.get_data(as_text=True)
 
-    # --- ログ出力1: 転送コード到達確認 ---
-    print("==> Forwarding code reached. Attempting to forward the JSON body...")
-
-    # ここでLINE受信したJSONを転送
-    response = requests.post(
-        "https://watasiino.com/line/webhook.php",
-        data=body,
-        headers={
-            "Content-Type": "application/json",
-            "X-WEBHOOK-SECRET": "bfc23a884fc214d3b021b81c6d85e0f4"
-        }
-    )
-
-    # --- ログ出力2: 転送後のレスポンス確認 ---
-    print(f"==> Forward result: status={response.status_code}, response={response.text}")
-
     try:
         handler.handle(body, signature)
     except InvalidSignatureError:
@@ -886,7 +869,7 @@ def send_catalog_info(event: MessageEvent):
         "https://www.tiktok.com/@graffitees_045\n\n"
         "フォロー後、下記のフォームからお申込みください👇\n"
         "📩 カタログ申込みフォーム\n"
-        "https://graffitees-line-bot.onrender.com/catalog_form\n"
+        "https://catalog-bot-1.onrender.com/catalog_form\n"
         "⚠️ 注意：サブアカウントや重複申込みはご遠慮ください。\n\n"
         "【カタログ発送時期】\n"
         "📅 2025年4月中旬より郵送で発送予定です。\n\n"
@@ -954,7 +937,7 @@ def process_estimate_flow(event: MessageEvent, user_message: str):
             del user_estimate_sessions[user_id]
             line_bot_api.reply_message(
                 event.reply_token,
-                TextSendMessage(text="入力内容が正しくありません。見積りフローを終了しました。")
+                TextSendMessage(text="入力内容が正しくありません。再度、メニューのカンタン見積りから始めてください。")
             )
         return
 
@@ -969,7 +952,7 @@ def process_estimate_flow(event: MessageEvent, user_message: str):
             del user_estimate_sessions[user_id]
             line_bot_api.reply_message(
                 event.reply_token,
-                TextSendMessage(text="入力内容が正しくありません。見積りフローを終了しました。")
+                TextSendMessage(text="入力内容が正しくありません。再度、メニューのカンタン見積りから始めてください。")
             )
         return
 
@@ -984,7 +967,7 @@ def process_estimate_flow(event: MessageEvent, user_message: str):
             del user_estimate_sessions[user_id]
             line_bot_api.reply_message(
                 event.reply_token,
-                TextSendMessage(text="入力内容が正しくありません。見積りフローを終了しました。")
+                TextSendMessage(text="入力内容が正しくありません。再度、メニューのカンタン見積りから始めてください。")
             )
         return
 
@@ -1012,7 +995,7 @@ def process_estimate_flow(event: MessageEvent, user_message: str):
             del user_estimate_sessions[user_id]
             line_bot_api.reply_message(
                 event.reply_token,
-                TextSendMessage(text="入力内容が正しくありません。見積りフローを終了しました。")
+                TextSendMessage(text="入力内容が正しくありません。再度、メニューのカンタン見積りから始めてください。")
             )
         return
 
@@ -1027,7 +1010,7 @@ def process_estimate_flow(event: MessageEvent, user_message: str):
             del user_estimate_sessions[user_id]
             line_bot_api.reply_message(
                 event.reply_token,
-                TextSendMessage(text="入力内容が正しくありません。見積りフローを終了しました。")
+                TextSendMessage(text="入力内容が正しくありません。再度、メニューのカンタン見積りから始めてください。")
             )
         return
 
@@ -1049,7 +1032,7 @@ def process_estimate_flow(event: MessageEvent, user_message: str):
             del user_estimate_sessions[user_id]
             line_bot_api.reply_message(
                 event.reply_token,
-                TextSendMessage(text="入力内容が正しくありません。見積りフローを終了しました。")
+                TextSendMessage(text="入力内容が正しくありません。再度、メニューのカンタン見積りから始めてください。")
             )
         return
 
@@ -1064,7 +1047,7 @@ def process_estimate_flow(event: MessageEvent, user_message: str):
                 del user_estimate_sessions[user_id]
                 line_bot_api.reply_message(
                     event.reply_token,
-                    TextSendMessage(text="入力内容が正しくありません。見積りフローを終了しました。")
+                    TextSendMessage(text="入力内容が正しくありません。再度、メニューのカンタン見積りから始めてください。")
                 )
                 return
 
@@ -1107,7 +1090,7 @@ def process_estimate_flow(event: MessageEvent, user_message: str):
                 del user_estimate_sessions[user_id]
                 line_bot_api.reply_message(
                     event.reply_token,
-                    TextSendMessage(text="入力内容が正しくありません。見積りフローを終了しました。")
+                    TextSendMessage(text="入力内容が正しくありません。再度、メニューのカンタン見積りから始めてください。")
                 )
                 return
 
@@ -1156,7 +1139,7 @@ def process_estimate_flow(event: MessageEvent, user_message: str):
             del user_estimate_sessions[user_id]
             line_bot_api.reply_message(
                 event.reply_token,
-                TextSendMessage(text="入力内容が正しくありません。見積りフローを終了しました。")
+                TextSendMessage(text="入力内容が正しくありません。再度、メニューのカンタン見積りから始めてください。")
             )
         return
 
@@ -1175,11 +1158,10 @@ def process_estimate_flow(event: MessageEvent, user_message: str):
 # -----------------------
 @app.route("/catalog_form", methods=["GET"])
 def show_catalog_form():
-    # ユニークなトークンを生成して session に記録
     token = str(uuid.uuid4())
     session['catalog_form_token'] = token
 
-    # ここで f-string を用いて {token} を実際の値に差し込む
+    # f-string で {token} を差し込む
     html_content = f"""<!DOCTYPE html>
 <html>
 <head>
@@ -1224,7 +1206,8 @@ def show_catalog_form():
             const response = await fetch(`https://api.zipaddress.net/?zipcode=${{pcRaw}}`);
             const data = await response.json();
             if (data.code === 200) {{
-                document.getElementById('address').value = data.data.fullAddress;
+                // 都道府県・市区町村 部分だけを address_1 に自動入力
+                document.getElementById('address_1').value = data.data.fullAddress;
             }}
         }} catch (error) {{
             console.log("住所検索失敗:", error);
@@ -1236,9 +1219,8 @@ def show_catalog_form():
     <div class="container">
       <h1>カタログ申し込みフォーム</h1>
       <p>以下の項目をご記入の上、送信してください。</p>
-      <!-- フォームは1つだけにまとめる -->
       <form action="/submit_form" method="post">
-          <!-- ここにワンタイムトークンを仕込みます -->
+          <!-- ワンタイムトークン -->
           <input type="hidden" name="form_token" value="{token}">
 
           <label>氏名（必須）:
@@ -1250,9 +1232,14 @@ def show_catalog_form():
               <input type="text" name="postal_code" id="postal_code" onkeyup="fetchAddress()" required>
           </label>
 
-          <label>住所（必須）:<br>
+          <label>都道府県・市区町村（必須）:<br>
+              <small>※郵便番号入力後に自動補完される箇所です。修正が必要な場合は上書きしてください。</small><br>
+              <input type="text" name="address_1" id="address_1" required>
+          </label>
+
+          <label>番地・部屋番号など（必須）:<br>
               <small>※カタログ送付のために番地や部屋番号を含めた完全な住所の記入が必要です</small><br>
-              <input type="text" name="address" id="address" required>
+              <input type="text" name="address_2" id="address_2" required>
           </label>
 
           <label>電話番号（必須）:
@@ -1289,18 +1276,20 @@ def show_catalog_form():
 # -----------------------
 @app.route("/submit_form", methods=["POST"])
 def submit_catalog_form():
-    # 送信されたトークンをチェック
+    # トークンチェック
     form_token = request.form.get('form_token')
     if form_token != session.get('catalog_form_token'):
         return "二重送信、あるいは不正なリクエストです。", 400
 
-    # ここでトークンを使い捨てにする
+    # トークンの使い捨て
     session.pop('catalog_form_token', None)
 
+    # フォームから受け取ったデータを辞書に格納
     form_data = {
         "name": request.form.get("name", "").strip(),
         "postal_code": request.form.get("postal_code", "").strip(),
-        "address": request.form.get("address", "").strip(),
+        "address_1": request.form.get("address_1", "").strip(),  # 都道府県・市区町村
+        "address_2": request.form.get("address_2", "").strip(),  # 番地・部屋番号
         "phone": request.form.get("phone", "").strip(),
         "email": request.form.get("email", "").strip(),
         "sns_account": request.form.get("sns_account", "").strip(),
@@ -1309,6 +1298,7 @@ def submit_catalog_form():
     }
 
     try:
+        # スプレッドシートへの書き込み（例）
         write_to_spreadsheet_for_catalog(form_data)
     except Exception as e:
         return f"エラーが発生しました: {e}", 500
