@@ -1167,7 +1167,7 @@ def show_catalog_form():
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>カタログ申し込みフォーム</title>
+    <title>カタログ申込フォーム</title>
     <style>
         body {{
             margin: 0;
@@ -1228,12 +1228,12 @@ def show_catalog_form():
           </label>
 
           <label>郵便番号（必須）:<br>
-              <small>※ハイフン無し7桁で入力すると自動で住所補完します</small><br>
+              <small>※自動で住所補完します</small><br>
               <input type="text" name="postal_code" id="postal_code" onkeyup="fetchAddress()" required>
           </label>
 
           <label>都道府県・市区町村（必須）:<br>
-              <small>※郵便番号入力後に自動補完される箇所です。修正が必要な場合は上書きしてください。</small><br>
+              <small>※郵便番号入力後に自動補完されます。修正が必要な場合は上書きしてください。</small><br>
               <input type="text" name="address_1" id="address_1" required>
           </label>
 
