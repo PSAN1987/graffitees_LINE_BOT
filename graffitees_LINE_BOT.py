@@ -790,13 +790,28 @@ def line_callback():
     signature = request.headers["X-Line-Signature"]
     body = request.get_data(as_text=True)
 
+    # --- ログ出力1: 転送コード到達確認 ---
+    print("==> Forwarding code reached. Attempting to forward the JSON body...")
+
+    # ここでLINE受信したJSONを転送
+    response = requests.post(
+        "https://watasiino.com/line/webhook.php",
+        data=body,
+        headers={
+            "Content-Type": "application/json",
+            "X-WEBHOOK-SECRET": "bfc23a884fc214d3b021b81c6d85e0f4"
+        }
+    )
+
+    # --- ログ出力2: 転送後のレスポンス確認 ---
+    print(f"==> Forward result: status={response.status_code}, response={response.text}")
+
     try:
         handler.handle(body, signature)
     except InvalidSignatureError:
         abort(400, "Invalid signature. Please check your channel access token/channel secret.")
 
     return "OK", 200
-
 
 # -----------------------
 # 2) LINE上でメッセージ受信時
