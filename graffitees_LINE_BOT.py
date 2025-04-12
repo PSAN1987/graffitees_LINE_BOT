@@ -1217,7 +1217,7 @@ def show_catalog_form():
 </head>
 <body>
     <div class="container">
-      <h1>カタログ申し込みフォーム</h1>
+      <h1>カタログ申込フォーム</h1>
       <p>以下の項目をご記入の上、送信してください。</p>
       <form action="/submit_form" method="post">
           <!-- ワンタイムトークン -->
