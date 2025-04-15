@@ -791,8 +791,15 @@ def flex_inquiry():
 # -----------------------
 @app.route("/line/callback", methods=["POST"])
 def line_callback():
-    signature = request.headers["X-Line-Signature"]
+    # X-Line-Signature を取得
+    signature = request.headers.get("X-Line-Signature", "")
+
+    # Body (JSON文字列) をテキストとして取得
     body = request.get_data(as_text=True)
+
+    # --- デバッグログ: 受信データの中身を出力 ---
+    print("==> [DEBUG] Received signature:", signature)
+    print("==> [DEBUG] Received body:", repr(body))
 
     # --- ログ出力1: 転送コード到達確認 ---
     print("==> Forwarding code reached. Attempting to forward the JSON body...")
@@ -810,13 +817,13 @@ def line_callback():
     # --- ログ出力2: 転送後のレスポンス確認 ---
     print(f"==> Forward result: status={response.status_code}, response={response.text}")
 
+    # シグネチャ検証してハンドラーを呼ぶ
     try:
         handler.handle(body, signature)
     except InvalidSignatureError:
         abort(400, "Invalid signature. Please check your channel access token/channel secret.")
 
     return "OK", 200
-
 # -----------------------
 # 2) LINE上でメッセージ受信時
 # -----------------------
