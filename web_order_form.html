@@ -84,7 +84,11 @@
 <body>
 <div class="container">
   <h1>WEBフォーム注文</h1>
-  <form id="orderForm">
+  <form id="orderForm"
+      action="/submit_web_order_form"   <!-- 送信先 -->
+      method="post">                    <!-- POST で送る -->
+  <!-- CSRF 用ワンタイムトークン -->
+  <input type="hidden" name="form_token" value="{{ token }}">
     <!-- ▼ 製品選択（商品名 → 品番 → カラーNo → 商品カラー）▼ -->
     <div class="form-group">
       <label for="productNameSelect">商品名 <span style="color:red;">(必須)</span></label>
