@@ -80,7 +80,6 @@
     .mt1 { margin-top: 1em; }
     .mb1 { margin-bottom: 1em; }
   </style>
-  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 </head>
 <body>
 <div class="container">
@@ -1131,18 +1130,6 @@
     productNoSelect.addEventListener("change", setColorNoOptions);
     colorNoSelect.addEventListener("change", setColorNameOptions);
   });
-      // ページロード後に LIFF 初期化
-      document.addEventListener("DOMContentLoaded", async () => {
-      try {
-        await liff.init({ liffId: "{{ liff_id }}" });      // ← Flask から渡した変数
-        // プロフィール取得で userId を取得
-        const profile = await liff.getProfile();
-        document.getElementById("lineUserId").value = profile.userId;
-      } catch(e) {
-        console.error("LIFF error", e);
-        alert("LINEログインに失敗しました。");
-      }
-    });
 </script>
 </body>
 </html>
