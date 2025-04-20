@@ -86,10 +86,11 @@
   <h1>WEBフォーム注文</h1>
   <!-- 送信先: /submit_web_order_form  /  POST で送る -->
   <form id="orderForm" action="/submit_web_order_form" method="post">
-  <input type="hidden" name="lineUserId" id="lineUserId">
-  <!-- CSRF 用ワンタイムトークン -->
-  <input type="hidden" name="form_token" value="{{ token }}">
-    <!-- ▼ 製品選択（商品名 → 品番 → カラーNo → 商品カラー）▼ -->
+    <input type="hidden" name="lineUserId" id="lineUserId">
+    <!-- CSRF 用ワンタイムトークン -->
+    <input type="hidden" name="form_token" value="{{ token }}">
+
+    <!-- ▼ 製品選択（商品名 → 品番 → 商品カラー → カラーNo）▼ -->
     <div class="form-group">
       <label for="productNameSelect">商品名 <span style="color:red;">(必須)</span></label>
       <select id="productNameSelect" name="productName" required>
@@ -104,16 +105,18 @@
       </select>
     </div>
 
+    <!-- 商品カラーを先に選ぶ -->
     <div class="form-group">
-      <label for="colorNoSelect">カラーNo <span style="color:red;">(必須)</span></label>
-      <select id="colorNoSelect" name="colorNo" required>
+      <label for="colorNameSelect">商品カラー <span style="color:red;">(必須)</span></label>
+      <select id="colorNameSelect" name="colorName" required>
         <option value="">選択してください</option>
       </select>
     </div>
 
+    <!-- その後にカラーNoを選択 -->
     <div class="form-group">
-      <label for="colorNameSelect">商品カラー <span style="color:red;">(必須)</span></label>
-      <select id="colorNameSelect" name="colorName" required>
+      <label for="colorNoSelect">カラーNo <span style="color:red;">(必須)</span></label>
+      <select id="colorNoSelect" name="colorNo" required>
         <option value="">選択してください</option>
       </select>
     </div>
@@ -161,7 +164,6 @@
     <!-- ▼ プリント位置のイメージ画像 ▼ -->
     <div class="form-group">
       <label>プリント位置イメージ</label>
-      <!-- 任意のURLに差し替え可能 -->
       <img src="https://catalog-bot-zf1t.onrender.com/PRINT_LOCATION.png" alt="プリント位置イメージ" style="max-width:80%;">
     </div>
 
@@ -170,7 +172,7 @@
       <legend>1ヵ所目のプリント設定 (必須)</legend>
       <div class="sub-group">
         <label for="printPositionNo1">プリント位置No.</label>
-        <select id="printPositionNo1" name="printPositionNo1" required onchange="toggleNameNumberOptions(1)">
+        <select id="printPositionNo1" name="printPositionNo1" required>
           <option value="">選択</option>
           <option value="1">1</option>
           <option value="2">2</option>
@@ -182,19 +184,7 @@
         </select>
       </div>
 
-      <!-- ネーム&番号プリント種別 (位置No.が6 or 7の時だけ表示) -->
-      <div id="nameNumberOptions1" class="sub-group hidden">
-        <label>ネーム＆番号プリント</label>
-        <select name="nameNumberOption1" id="nameNumberOption1" onchange="toggleNameNumberColorBox(1)">
-          <option value="">選択</option>
-          <option value="nameNumberSet">ネーム＆背番号セット</option>
-          <option value="nameLarge">ネーム(大)</option>
-          <option value="nameSmall">ネーム(小)</option>
-          <option value="numberLarge">番号(大)</option>
-          <option value="numberSmall">番号(小)</option>
-        </select>
-      </div>
-      <!-- ネーム&番号プリントカラーオプション -->
+      <!-- ネーム＆番号プリントカラーオプション (プリントカラーでネーム系選択時に表示) -->
       <div id="nameNumberPrintColorBox1" class="sub-group hidden" style="border:1px solid #ccc; padding:0.5em;">
         <strong>ネーム・番号プリントカラーオプション</strong>
         <div class="inline-flex mt1 mb1">
@@ -204,9 +194,7 @@
         <!-- 単色 -->
         <div id="singleColorSelectArea1" class="sub-group">
           <label>単色カラー</label>
-          <select id="singleColor1" name="singleColor1">
-            <!-- JSで動的に追加 -->
-          </select>
+          <select id="singleColor1" name="singleColor1"></select>
         </div>
         <!-- フチ付き -->
         <div id="edgeColorSelectArea1" class="sub-group hidden">
@@ -249,13 +237,13 @@
       <!-- 通常のプリントカラー・オプション (1色目, 2色目, 3色目, フルカラー) -->
       <div class="sub-group">
         <label>プリントカラー・オプション</label>
-        <select name="printColorOption1_1" id="printColorOption1_1">
+        <select name="printColorOption1_1" id="printColorOption1_1" onchange="handlePrintColorChange(1)">
           <option value="">1色目を選択</option>
         </select>
-        <select name="printColorOption1_2" id="printColorOption1_2">
+        <select name="printColorOption1_2" id="printColorOption1_2" onchange="handlePrintColorChange(1)">
           <option value="">2色目を選択</option>
         </select>
-        <select name="printColorOption1_3" id="printColorOption1_3">
+        <select name="printColorOption1_3" id="printColorOption1_3" onchange="handlePrintColorChange(1)">
           <option value="">3色目を選択</option>
         </select>
         <!-- フルカラー -->
@@ -341,7 +329,6 @@
     <!-- ▼ 郵便番号 (必須) & 学校(お届け)住所 ▼ -->
     <div class="form-group">
       <label for="zipCode">お届け先の郵便番号 <span style="color:red;">(必須)</span></label>
-      <!-- 入力後にblurなどで住所自動入力関数を呼ぶ -->
       <input type="text" id="zipCode" name="zipCode" placeholder="例: 123-4567" required onblur="autoFillAddress()" />
     </div>
     <div class="form-group">
@@ -402,11 +389,10 @@
 </div>
 
 <script>
-  
   /**********************************************
    * 1) 製品テーブル（ご提示いただいたデータをすべて統合）
    **********************************************/
-   const productTable = [
+  const productTable = [
     // 5927-01 ゲームシャツ
     { productNo: "5927-01", productName: "ゲームシャツ", colorNo: "9816", colorName: "ホワイト/ホワイト/ブラック" },
     { productNo: "5927-01", productName: "ゲームシャツ", colorNo: "9887", colorName: "レッド/ホワイト/ブラック" },
@@ -579,7 +565,7 @@
     { productNo: "302-ADP", productName: "ドライポロシャツ", colorNo: "155", colorName: "ライム" },
     { productNo: "302-ADP", productName: "ドライポロシャツ", colorNo: "025", colorName: "グリーン" },
 
-    // 303-ADP,304-ADP,... として分かれたデータ（実際は型番が異なる）
+    // 303-ADP,304-ADP,... (型番違いのデータ例)
     { productNo: "303-ADP", productName: "ドライポロシャツ", colorNo: "037", colorName: "アーミーグリーン" },
     { productNo: "304-ADP", productName: "ドライポロシャツ", colorNo: "026", colorName: "ミントグリーン" },
     { productNo: "305-ADP", productName: "ドライポロシャツ", colorNo: "096", colorName: "ミントブルー" },
@@ -645,58 +631,60 @@
     { productNo: "217-MLZ", productName: "ジップアップライトパーカー", colorNo: "037", colorName: "アーミーグリーン" }
   ];
 
+  /**********************************************
+   * (B) プリントカラー・オプション（全色 + 属性）
+   **********************************************/
+  const printColorOptions = [
+    { name: "ホワイト", attribute: "レギュラーインク" },
+    { name: "ライトグレー", attribute: "レギュラーインク" },
+    { name: "ダークグレー", attribute: "レギュラーインク" },
+    { name: "ブラック", attribute: "レギュラーインク" },
+    { name: "サックス", attribute: "レギュラーインク" },
+    { name: "ブルー", attribute: "レギュラーインク" },
+    { name: "ネイビー", attribute: "レギュラーインク" },
+    { name: "ライトピンク", attribute: "レギュラーインク" },
+    { name: "ローズピンク", attribute: "レギュラーインク" },
+    { name: "ホットピンク", attribute: "レギュラーインク" },
+    { name: "レッド", attribute: "レギュラーインク" },
+    { name: "ワインレッド", attribute: "レギュラーインク" },
+    { name: "ミントグリーン", attribute: "レギュラーインク" },
+    { name: "エメラルドグリーン", attribute: "レギュラーインク" },
+    { name: "パステルイエロー", attribute: "レギュラーインク" },
+    { name: "イエロー", attribute: "レギュラーインク" },
+    { name: "ゴールドイエロー", attribute: "レギュラーインク" },
+    { name: "オレンジ", attribute: "レギュラーインク" },
+    { name: "イエローグリーン", attribute: "レギュラーインク" },
+    { name: "グリーン", attribute: "レギュラーインク" },
+    { name: "ダークグリーン", attribute: "レギュラーインク" },
+    { name: "ライトパープル", attribute: "レギュラーインク" },
+    { name: "パープル", attribute: "レギュラーインク" },
+    { name: "クリーム", attribute: "レギュラーインク" },
+    { name: "ライトブラウン", attribute: "レギュラーインク" },
+    { name: "ダークブラウン", attribute: "レギュラーインク" },
+    { name: "シルバー", attribute: "レギュラーインク" },
+    { name: "ゴールド", attribute: "レギュラーインク" },
 
-/**********************************************
- * (B) プリントカラー・オプション（全色 + 属性）
- **********************************************/
- const printColorOptions = [
-  { name: "ホワイト", attribute: "レギュラーインク" },
-  { name: "ライトグレー", attribute: "レギュラーインク" },
-  { name: "ダークグレー", attribute: "レギュラーインク" },
-  { name: "ブラック", attribute: "レギュラーインク" },
-  { name: "サックス", attribute: "レギュラーインク" },
-  { name: "ブルー", attribute: "レギュラーインク" },
-  { name: "ネイビー", attribute: "レギュラーインク" },
-  { name: "ライトピンク", attribute: "レギュラーインク" },
-  { name: "ローズピンク", attribute: "レギュラーインク" },
-  { name: "ホットピンク", attribute: "レギュラーインク" },
-  { name: "レッド", attribute: "レギュラーインク" },
-  { name: "ワインレッド", attribute: "レギュラーインク" },
-  { name: "ミントグリーン", attribute: "レギュラーインク" },
-  { name: "エメラルドグリーン", attribute: "レギュラーインク" },
-  { name: "パステルイエロー", attribute: "レギュラーインク" },
-  { name: "イエロー", attribute: "レギュラーインク" },
-  { name: "ゴールドイエロー", attribute: "レギュラーインク" },
-  { name: "オレンジ", attribute: "レギュラーインク" },
-  { name: "イエローグリーン", attribute: "レギュラーインク" },
-  { name: "グリーン", attribute: "レギュラーインク" },
-  { name: "ダークグリーン", attribute: "レギュラーインク" },
-  { name: "ライトパープル", attribute: "レギュラーインク" },
-  { name: "パープル", attribute: "レギュラーインク" },
-  { name: "クリーム", attribute: "レギュラーインク" },
-  { name: "ライトブラウン", attribute: "レギュラーインク" },
-  { name: "ダークブラウン", attribute: "レギュラーインク" },
-  { name: "シルバー", attribute: "レギュラーインク" },
-  { name: "ゴールド", attribute: "レギュラーインク" },
-  { name: "グリッターシルバー", attribute: "オプションインク" },
-  { name: "グリッターゴールド", attribute: "オプションインク" },
-  { name: "グリッターブラック", attribute: "オプションインク" },
-  { name: "グリッターイエロー", attribute: "オプションインク" },
-  { name: "グリッターピンク", attribute: "オプションインク" },
-  { name: "グリッターレッド", attribute: "オプションインク" },
-  { name: "グリッターグリーン", attribute: "オプションインク" },
-  { name: "グリッターブルー", attribute: "オプションインク" },
-  { name: "グリッターパープル", attribute: "オプションインク" },
-  { name: "蛍光イエロー", attribute: "オプションインク" },
-  { name: "蛍光オレンジ", attribute: "オプションインク" },
-  { name: "蛍光ピンク", attribute: "オプションインク" },
-  { name: "蛍光グリーン", attribute: "オプションインク" },
-  { name: "ネーム＆背番号セット", attribute: "ネーム＆背番号セット" },
-  { name: "ネーム(大)", attribute: "ネーム(大)" },
-  { name: "ネーム(小)", attribute: "ネーム(小)" },
-  { name: "番号(大)", attribute: "番号(大)" },
-  { name: "番号(小)", attribute: "番号(小)" },
-];
+    { name: "グリッターシルバー", attribute: "オプションインク" },
+    { name: "グリッターゴールド", attribute: "オプションインク" },
+    { name: "グリッターブラック", attribute: "オプションインク" },
+    { name: "グリッターイエロー", attribute: "オプションインク" },
+    { name: "グリッターピンク", attribute: "オプションインク" },
+    { name: "グリッターレッド", attribute: "オプションインク" },
+    { name: "グリッターグリーン", attribute: "オプションインク" },
+    { name: "グリッターブルー", attribute: "オプションインク" },
+    { name: "グリッターパープル", attribute: "オプションインク" },
+
+    { name: "蛍光イエロー", attribute: "オプションインク" },
+    { name: "蛍光オレンジ", attribute: "オプションインク" },
+    { name: "蛍光ピンク", attribute: "オプションインク" },
+    { name: "蛍光グリーン", attribute: "オプションインク" },
+
+    { name: "ネーム＆背番号セット", attribute: "ネーム＆背番号セット" },
+    { name: "ネーム(大)", attribute: "ネーム(大)" },
+    { name: "ネーム(小)", attribute: "ネーム(小)" },
+    { name: "番号(大)", attribute: "番号(大)" },
+    { name: "番号(小)", attribute: "番号(小)" }
+  ];
 
   /**********************************************
    * (C) ネーム・番号用の「単色」と「フチ付き」カスタムで使う色一覧
@@ -711,13 +699,16 @@
     "ピンク","ホットピンク","レッド","パープル","ライトグリーン","グリーン"
   ];
 
-  // 各セレクト要素を取得
+  // 各セレクト要素
   const productNameSelect = document.getElementById("productNameSelect");
   const productNoSelect   = document.getElementById("productNoSelect");
-  const colorNoSelect     = document.getElementById("colorNoSelect");
   const colorNameSelect   = document.getElementById("colorNameSelect");
+  const colorNoSelect     = document.getElementById("colorNoSelect");
 
-  // 商品名リストを初期化
+
+  /**********************************************
+   * 商品名 → 品番 → 商品カラー → カラーNo
+   **********************************************/
   function setProductNameOptions() {
     const names = Array.from(new Set(productTable.map(i=>i.productName)));
     productNameSelect.innerHTML = '<option value="">選択してください</option>';
@@ -728,16 +719,17 @@
       productNameSelect.appendChild(opt);
     });
   }
-  // 商品名→品番
+
   function setProductNoOptions() {
     const selectedName = productNameSelect.value;
     productNoSelect.innerHTML   = '<option value="">選択してください</option>';
-    colorNoSelect.innerHTML     = '<option value="">選択してください</option>';
     colorNameSelect.innerHTML   = '<option value="">選択してください</option>';
+    colorNoSelect.innerHTML     = '<option value="">選択してください</option>';
     if (!selectedName) return;
+
     const nos = Array.from(
       new Set(
-        productTable.filter(i=> i.productName===selectedName).map(i=> i.productNo)
+        productTable.filter(i=> i.productName === selectedName).map(i=> i.productNo)
       )
     );
     nos.forEach(n=>{
@@ -747,49 +739,53 @@
       productNoSelect.appendChild(opt);
     });
   }
-  // 品番→カラーNo
-  function setColorNoOptions() {
-    const selectedName = productNameSelect.value;
-    const selectedNo   = productNoSelect.value;
-    colorNoSelect.innerHTML   = '<option value="">選択してください</option>';
-    colorNameSelect.innerHTML = '<option value="">選択してください</option>';
-    if(!selectedName || !selectedNo) return;
-    const cNos = Array.from(
-      new Set(
-        productTable
-          .filter(i=> i.productName===selectedName && i.productNo===selectedNo)
-          .map(i=> i.colorNo)
-      )
-    );
-    cNos.forEach(cn=>{
-      const opt = document.createElement("option");
-      opt.value = cn;
-      opt.textContent = cn;
-      colorNoSelect.appendChild(opt);
-    });
-  }
-  // カラーNo→カラー名
+
   function setColorNameOptions() {
     const selectedName = productNameSelect.value;
     const selectedNo   = productNoSelect.value;
-    const selectedCno  = colorNoSelect.value;
     colorNameSelect.innerHTML = '<option value="">選択してください</option>';
-    if(!selectedName || !selectedNo || !selectedCno) return;
-    const matches = productTable.filter(i=>
-      i.productName===selectedName && i.productNo===selectedNo && i.colorNo===selectedCno
+    colorNoSelect.innerHTML   = '<option value="">選択してください</option>';
+    if(!selectedName || !selectedNo) return;
+
+    const cNames = Array.from(
+      new Set(
+        productTable
+          .filter(i=> i.productName===selectedName && i.productNo===selectedNo)
+          .map(i=> i.colorName)
+      )
     );
-    matches.forEach(m=>{
+    cNames.forEach(cn => {
       const opt = document.createElement("option");
-      opt.value = m.colorName;
-      opt.textContent = m.colorName;
+      opt.value = cn;
+      opt.textContent = cn;
       colorNameSelect.appendChild(opt);
     });
-    if(matches.length===1) colorNameSelect.selectedIndex=1;
   }
 
-  // プリントカラーセレクト(1色目/2色目/3色目)を生成
+  function setColorNoOptions() {
+    const selectedName    = productNameSelect.value;
+    const selectedNo      = productNoSelect.value;
+    const selectedCname   = colorNameSelect.value;
+    colorNoSelect.innerHTML = '<option value="">選択してください</option>';
+    if(!selectedName || !selectedNo || !selectedCname) return;
+
+    const matches = productTable.filter(i=>
+      i.productName===selectedName && i.productNo===selectedNo && i.colorName===selectedCname
+    );
+    matches.forEach(m => {
+      const opt = document.createElement("option");
+      opt.value = m.colorNo;
+      opt.textContent = m.colorNo;
+      colorNoSelect.appendChild(opt);
+    });
+    // 候補が1つだけなら自動選択
+    if(matches.length === 1) colorNoSelect.selectedIndex = 1;
+  }
+
+  /**********************************************
+   * プリントカラーセレクト(1色目/2色目/3色目)を生成
+   **********************************************/
   function populatePrintColorSelects(baseId) {
-    // baseId: たとえば "printColorOption1_" のような接頭辞
     ["1","2","3"].forEach(num=>{
       const selId = baseId + num;  // 例: "printColorOption1_1"
       const sel = document.getElementById(selId);
@@ -804,32 +800,33 @@
     });
   }
 
-  // ネーム・番号プリント時の表示切替
-  function toggleNameNumberOptions(idx) {
-    const sel = document.getElementById("printPositionNo" + idx);
-    const val = sel.value;
-    const box = document.getElementById("nameNumberOptions" + idx);
-    if(val==="6" || val==="7"){
-      box.classList.remove("hidden");
-    } else {
-      box.classList.add("hidden");
-      // さらに色設定のボックスも隠す
-      document.getElementById("nameNumberPrintColorBox"+idx).classList.add("hidden");
-    }
-  }
-  // ネーム＆番号プリントの種類
-  function toggleNameNumberColorBox(idx) {
-    const sel = document.getElementById("nameNumberOption"+idx);
-    const val = sel.value;
-    const box = document.getElementById("nameNumberPrintColorBox"+idx);
-    if(val) {
+  /**********************************************
+   * 「ネーム＆背番号系」選択時の表示切り替え
+   * プリントカラー(1色目/2色目/3色目)のどれかで
+   *  ネーム&背番号セット/ネーム(大)/(小)/番号(大)/(小)
+   * を選んだら nameNumberPrintColorBox を表示
+   **********************************************/
+  function handlePrintColorChange(idx){
+    // 1色目・2色目・3色目の選択値を取得
+    const color1 = document.getElementById(`printColorOption${idx}_1`).value;
+    const color2 = document.getElementById(`printColorOption${idx}_2`).value;
+    const color3 = document.getElementById(`printColorOption${idx}_3`).value;
+    // 対象名
+    const nameNumGroup = ["ネーム＆背番号セット","ネーム(大)","ネーム(小)","番号(大)","番号(小)"];
+    // いずれかに含まれていれば表示
+    const isNameNumber = nameNumGroup.includes(color1) || nameNumGroup.includes(color2) || nameNumGroup.includes(color3);
+
+    const box = document.getElementById(`nameNumberPrintColorBox${idx}`);
+    if(isNameNumber){
       box.classList.remove("hidden");
     } else {
       box.classList.add("hidden");
     }
   }
 
-  // 単色 or フチ付き
+  /**********************************************
+   * 単色 or フチ付き の切り替え
+   **********************************************/
   function toggleEdgeColor(idx) {
     const radios = document.getElementsByName("nameNumberPrintType"+idx);
     let selected = "single";
@@ -845,7 +842,9 @@
     }
   }
 
-  // フチ付きタイプを変更
+  /**********************************************
+   * フチ付きタイプを変更 (定型 or custom)
+   **********************************************/
   function changeEdgeType(idx) {
     const sel = document.getElementById("edgeType"+idx);
     const val = sel.value;
@@ -861,7 +860,6 @@
       edge2.value="";
     } else {
       customArea.classList.add("hidden");
-      // FT-1 ～ FT-8
       switch(val){
         case "FT-1":
           textColor.value="ブラック"; edge1.value="ブラック"; edge2.value="";
@@ -891,7 +889,9 @@
     }
   }
 
-  // フォント選択（英数字/日本語）
+  /**********************************************
+   * フォント(英数字 or 日本語)の切り替え
+   **********************************************/
   function handleFontRadio(idx) {
     const eRadio = document.querySelector(`input[name="fontType${idx}"][value="E"]`);
     const prefix = document.getElementById("fontPrefix"+idx);
@@ -902,7 +902,9 @@
     }
   }
 
-  // デザインサイズの切り替え
+  /**********************************************
+   * デザインサイズ (max or custom)
+   **********************************************/
   function toggleCustomSize(idx){
     const sel = document.getElementById("designSize"+idx);
     const cDiv = document.getElementById("customSizeInput"+idx);
@@ -913,7 +915,9 @@
     }
   }
 
-  // 合計枚数計算
+  /**********************************************
+   * 合計枚数計算
+   **********************************************/
   function calculateTotal(){
     const sizeIds = ["size150","sizeSS","sizeS","sizeM","sizeL","sizeXL","sizeXXL"];
     let total=0;
@@ -925,7 +929,7 @@
   }
 
   /**********************************************
-   * (D) 追加プリント箇所を動的に増やす
+   * 追加プリント箇所を動的に増やす
    **********************************************/
   let printLocationCount = 1;  // 最初は1箇所目がある
   function addPrintLocation(){
@@ -936,30 +940,25 @@
     printLocationCount++;
     const idx = printLocationCount; // 2,3,4
 
-    // 複製: 1ヵ所目のHTMLをベースにするか、あらかじめテンプレートを用意する方法も可
-    // ここでは簡単のためテンプレート文字列で用意
+    // テンプレート
     const html = `
       <fieldset id="printLocation${idx}">
         <legend>${idx}ヵ所目のプリント設定</legend>
         <div class="sub-group">
           <label for="printPositionNo${idx}">プリント位置No.</label>
-          <select id="printPositionNo${idx}" name="printPositionNo${idx}" onchange="toggleNameNumberOptions(${idx})">
+          <select id="printPositionNo${idx}" name="printPositionNo${idx}">
             <option value="">選択</option>
-            <option value="1">1</option><option value="2">2</option><option value="3">3</option>
-            <option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+            <option value="6">6</option>
+            <option value="7">7</option>
           </select>
         </div>
-        <div id="nameNumberOptions${idx}" class="sub-group hidden">
-          <label>ネーム＆番号プリント</label>
-          <select name="nameNumberOption${idx}" id="nameNumberOption${idx}" onchange="toggleNameNumberColorBox(${idx})">
-            <option value="">選択</option>
-            <option value="nameNumberSet">ネーム＆背番号セット</option>
-            <option value="nameLarge">ネーム(大)</option>
-            <option value="nameSmall">ネーム(小)</option>
-            <option value="numberLarge">番号(大)</option>
-            <option value="numberSmall">番号(小)</option>
-          </select>
-        </div>
+
+        <!-- ネーム＆番号プリントカラーオプション -->
         <div id="nameNumberPrintColorBox${idx}" class="sub-group hidden" style="border:1px solid #ccc; padding:0.5em;">
           <strong>ネーム・番号プリントカラーオプション</strong>
           <div class="inline-flex mt1 mb1">
@@ -1005,15 +1004,16 @@
             </div>
           </div>
         </div>
+
         <div class="sub-group">
           <label>プリントカラー・オプション</label>
-          <select name="printColorOption${idx}_1" id="printColorOption${idx}_1">
+          <select name="printColorOption${idx}_1" id="printColorOption${idx}_1" onchange="handlePrintColorChange(${idx})">
             <option value="">1色目を選択</option>
           </select>
-          <select name="printColorOption${idx}_2" id="printColorOption${idx}_2">
+          <select name="printColorOption${idx}_2" id="printColorOption${idx}_2" onchange="handlePrintColorChange(${idx})">
             <option value="">2色目を選択</option>
           </select>
-          <select name="printColorOption${idx}_3" id="printColorOption${idx}_3">
+          <select name="printColorOption${idx}_3" id="printColorOption${idx}_3" onchange="handlePrintColorChange(${idx})">
             <option value="">3色目を選択</option>
           </select>
           <select name="fullColorSize${idx}">
@@ -1046,7 +1046,6 @@
       </fieldset>
     `;
     const container = document.getElementById("additionalPrintLocations");
-    // 追加
     const div = document.createElement("div");
     div.innerHTML = html;
     container.appendChild(div);
@@ -1079,20 +1078,16 @@
   }
 
   /**********************************************
-   * (E) 郵便番号 → 住所1 自動入力（サンプル）
+   * 郵便番号 → 住所1 自動入力
    **********************************************/
-   function autoFillAddress(){
+  function autoFillAddress(){
     const zip = document.getElementById("zipCode").value.trim();
     if(!zip) return;
-
     fetch('https://zipcloud.ibsnet.co.jp/api/search?zipcode=' + encodeURIComponent(zip))
       .then(response => response.json())
       .then(data => {
-        // ZipCloudのレスポンス
-        // data.status === 200 かつ data.results がある場合に取得成功
         if(data.status === 200 && data.results && data.results.length > 0) {
           const result = data.results[0];
-          // address1: 都道府県, address2: 市区町村, address3: 町域
           const fullAddress = result.address1 + result.address2 + result.address3;
           document.getElementById("address1").value = fullAddress;
         } else {
@@ -1109,34 +1104,36 @@
    * ページ読み込み時の初期処理
    **********************************************/
   window.addEventListener("DOMContentLoaded",()=>{
-    // 商品名リスト
+    // 商品名リストを初期化
     setProductNameOptions();
+
     // 1ヵ所目のプリントカラーセレクト
     populatePrintColorSelects("printColorOption1_");
-    // 1ヵ所目のネーム&番号用カラー
+    // ネーム＆番号プリントの単色/フチ付き用カラー選択肢(1ヵ所目)
     fillNameNumberColors("singleColor1", nameNumberSingleColors);
     fillNameNumberColors("edgeCustomTextColor1", nameNumberEdgeColors);
     fillNameNumberColors("edgeCustomEdgeColor1", nameNumberEdgeColors);
     fillNameNumberColors("edgeCustomEdgeColor2_1", nameNumberEdgeColors);
 
-    // フォント選択ラジオを監視(1ヵ所目)
+    // フォント選択ラジオ(1ヵ所目)
     const fontRadios1 = document.getElementsByName("fontType1");
     fontRadios1.forEach(r=>{
       r.addEventListener("change",()=>handleFontRadio(1));
     });
 
-    // 商品名/品番/カラーNo変更時のイベント
+    // 商品名/品番/商品カラー の選択イベント
     productNameSelect.addEventListener("change", setProductNoOptions);
-    productNoSelect.addEventListener("change", setColorNoOptions);
-    colorNoSelect.addEventListener("change", setColorNameOptions);
+    productNoSelect.addEventListener("change", setColorNameOptions);
+    colorNameSelect.addEventListener("change", setColorNoOptions);
   });
+
+  // ?uid=xxxxxxxx をパラメータから取得し、hiddenにセット
   (function () {
-  // ?uid=xxxxxxxx を取得
-  const params = new URLSearchParams(window.location.search);
-  const uid = params.get('uid');
-  if (uid) {
-    document.getElementById('lineUserId').value = uid;
-  }
+    const params = new URLSearchParams(window.location.search);
+    const uid = params.get('uid');
+    if (uid) {
+      document.getElementById('lineUserId').value = uid;
+    }
   })();
 </script>
 </body>
