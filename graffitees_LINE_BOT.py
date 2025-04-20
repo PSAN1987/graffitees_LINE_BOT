@@ -5,7 +5,7 @@ from datetime import datetime
 import pytz
 
 import gspread
-from flask import Flask, render_template_string, request, session, abort
+from flask import Flask, render_template, render_template_string, request, session, abort
 import uuid
 from oauth2client.service_account import ServiceAccountCredentials
 
