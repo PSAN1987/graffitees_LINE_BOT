@@ -17,7 +17,7 @@ import requests
 from linebot import LineBotApi, WebhookHandler
 from linebot.exceptions import InvalidSignatureError
 from linebot.models import (
-    MessageEvent, TextMessage, TextSendMessage, FlexSendMessage
+    MessageEvent, TextMessage, TextSendMessage, FlexSendMessage, PostbackEvent
 )
 
 app = Flask(__name__)
@@ -851,7 +851,6 @@ def handle_postback(event):
             event.reply_token,
             FlexSendMessage(alt_text="WEBフォーム", contents=flex)
         )
-
 # -----------------------
 # 1) LINE Messaging API 受信 (Webhook)
 # -----------------------
