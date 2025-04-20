@@ -1660,7 +1660,9 @@ def make_order_summary(order_no: str,
         cols = ", ".join([c for c in cols if c])
         pos_lines.append(f"{p}か所目 ({data.get(f'printPositionNo{p}')}) : {cols}")
     pos_block = "\n".join(pos_lines) if pos_lines else "—"
-    
+
+    # （背ネーム・番号などを取得する変数 back_name があっても、ここでは表示しないので削除またはコメントアウト）
+
     # 価格内訳
     price_break_down = (
         f"  ベース価格          ¥{est['base_unit']:,}\n"
@@ -1672,7 +1674,7 @@ def make_order_summary(order_no: str,
         f"  合計（{est['qty']}枚）   ¥{est['total_price']:,}"
     )
 
-    # ---------------- 完成メッセージ ----------------
+    # メッセージ作成
     return (
         "ご注文ありがとうございます。\n\n"
         f"注文番号: {order_no}\n"
@@ -1682,8 +1684,9 @@ def make_order_summary(order_no: str,
         f"合計枚数: {est['qty']} 枚\n\n"
         "【プリントカラー】\n"
         f"{pos_block}\n\n"
-        "【番号・ネーム情報】\n"
-        f"{back_name}\n\n"
+        # ↓ この2行を削除・コメントアウトしておく
+        # "【番号・ネーム情報】\n"
+        # f"{back_name}\n\n"
         "【価格内訳（1枚あたり）】\n"
         f"{price_break_down}\n\n"
         "担当スタッフより追って詳細をご連絡いたしますので少々お待ちください。"
