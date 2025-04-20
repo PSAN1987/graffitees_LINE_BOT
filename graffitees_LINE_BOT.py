@@ -819,8 +819,8 @@ def flex_inquiry():
                     "aspectRatio": "501:556",
                     "aspectMode": "cover",
                     "action": {
-                        "type": "uri",
-                        "uri": f"line://app/{LIFF_ID}"   # ← これだけ"
+                       "type": "postback",
+                       "data": "WEB_ORDER"    # ユーザーから見えない
                     }
                 }
             }
@@ -828,6 +828,29 @@ def flex_inquiry():
     }
     return FlexSendMessage(alt_text="お問い合わせ情報", contents=contents)
 
+# -----------------------
+# 0) ハンドラ側でキャッチして動的 URL を返す
+# -----------------------
+@handler.add(PostbackEvent)
+def handle_postback(event):
+    if event.postback.data == "WEB_ORDER":
+        uid = event.source.user_id
+        url = f"https://catalog-bot-1.onrender.com/webform?uid={uid}"
+
+        flex = {
+            "type":"bubble",
+            "body":{
+                "type":"box","layout":"vertical","contents":[
+                    {"type":"text","text":"WEBフォームでの注文を開く","weight":"bold","size":"lg"},
+                    {"type":"button","style":"primary",
+                     "action":{"type":"uri","label":"開く","uri":url}}
+                ]
+            }
+        }
+        line_bot_api.reply_message(
+            event.reply_token,
+            FlexSendMessage(alt_text="WEBフォーム", contents=flex)
+        )
 
 # -----------------------
 # 1) LINE Messaging API 受信 (Webhook)
@@ -843,7 +866,6 @@ def line_callback():
         abort(400, "Invalid signature. Please check your channel access token/channel secret.")
 
     return "OK", 200
-
 
 # -----------------------
 # 2) LINE上でメッセージ受信時
