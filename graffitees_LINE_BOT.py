@@ -83,8 +83,7 @@ def get_or_create_worksheet(sheet, title):
                 "合計金額", "単価"
             ]])
         elif title == "WebOrderRequests":
-            # 新たに Webフォーム注文のヘッダーをセット（必要に応じて列を追加/変更）
-            ws.update('A1:AZ1', [[
+            headers = [                          # ← ★ここで 101 列分のリストを定義
                 "日時",
                 "商品名", "品番", "カラーNo", "商品カラー",
                 "size150", "sizeSS", "sizeS", "sizeM", "sizeL", "sizeXL", "sizeXXL", "合計枚数",
@@ -118,7 +117,14 @@ def get_or_create_worksheet(sheet, title):
                 "郵便番号", "住所1", "住所2", "学校TEL",
                 "代表者", "代表者TEL", "代表者メール",
                 "デザイン確認方法", "お支払い方法"
-            ]])
+        ]
+            # ❶ 必要な列数を確保（あとで行追加時に不足すると困るため）
+            ws.resize(rows=2000, cols=len(headers))
+            # ❷ A1 だけを指定してヘッダーを書き込む
+            ws.update('A1', [headers])
+            ws.update('A1', [headers])          # ← 'A1:AZ1' を 'A1' に変更
+            ws.resize(rows=2000, cols=len(headers))   # 念のため列も合わせておく
+            # 新たに Webフォーム注文のヘッダーをセット（必要に応じて列を追加/変更）
     return ws
 
 
@@ -1434,7 +1440,7 @@ def write_to_spreadsheet_for_web_order(data: dict):
         data.get("paymentMethod", "")
     ]
     
-    # ---- 追加ここから ---------------------------------
+   # ---- 追加ここから ---------------------------------
     # 必要な列数を満たしていなければ列を増やす
     if len(row_values) > worksheet.col_count:
         worksheet.add_cols(len(row_values) - worksheet.col_count)
