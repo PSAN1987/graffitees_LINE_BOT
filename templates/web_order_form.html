@@ -1130,6 +1130,14 @@
     productNoSelect.addEventListener("change", setColorNoOptions);
     colorNoSelect.addEventListener("change", setColorNameOptions);
   });
+  (function () {
+  // ?uid=xxxxxxxx を取得
+  const params = new URLSearchParams(window.location.search);
+  const uid = params.get('uid');
+  if (uid) {
+    document.getElementById('lineUserId').value = uid;
+  }
+  })();
 </script>
 </body>
 </html>
