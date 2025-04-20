@@ -839,34 +839,31 @@ def handle_postback(event):
 
         flex = {
             "type": "bubble",
-            # バブル自体の塗り色
-            "styles": {
-                "body": { "backgroundColor": "#fffff" }
-            },
+            # バブルの背景はデフォルト（白）のまま
             "body": {
                 "type": "box",
                 "layout": "vertical",
-                "paddingAll": "16px",   # 少しスリム
+                "paddingAll": "16px",
                 "spacing": "sm",
                 "contents": [
-                    {   # 見出し（黒文字）
+                    {
                         "type": "text",
                         "text": "WEBフォームでの注文を開く",
                         "weight": "bold",
                         "size": "lg",
                         "align": "center",
                         "wrap": True,
-                        "color": "#000000"
+                        "color": "#000000"          # 見出しテキストは黒
                     },
-                    {   # secondary ボタン → 白背景に黒文字
+                    {
                         "type": "button",
-                        "style": "secondary",
+                        "style": "primary",          # primary にすると文字は自動で白
+                        "color": "#fc9cc2",          # ボタン背景をピンク
                         "height": "sm",
-                        "color": "#fc9cc2",     # ボタン背景を白
                         "action": {
                             "type": "uri",
                             "label": "開く",
-                            "uri": url           # ← クリック先
+                            "uri": url
                         }
                     }
                 ]
@@ -877,6 +874,7 @@ def handle_postback(event):
             event.reply_token,
             FlexSendMessage(alt_text="WEBフォーム", contents=flex)
         )
+
 
 # -----------------------
 # 1) LINE Messaging API 受信 (Webhook)
