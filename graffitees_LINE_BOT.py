@@ -834,19 +834,47 @@ def flex_inquiry():
 @handler.add(PostbackEvent)
 def handle_postback(event):
     if event.postback.data == "WEB_ORDER":
-        uid = event.source.user_id
-        url = f"https://graffitees-line-bot.onrender.com/web_order_form?uid={uid}"
+        uid  = event.source.user_id
+        url  = f"https://graffitees-line-bot.onrender.com/web_order_form?uid={uid}"
 
         flex = {
-            "type":"bubble",
-            "body":{
-                "type":"box","layout":"vertical","contents":[
-                    {"type":"text","text":"WEBフォームでの注文を開く","weight":"bold","size":"lg"},
-                    {"type":"button","style":"primary",
-                     "action":{"type":"uri","label":"開く","uri":url}}
+            "type": "bubble",
+            # ← 背景色を #fc9cc2 に
+            "styles": {
+                "body": { "backgroundColor": "#fc9cc2" }
+            },
+            "body": {
+                "type": "box",
+                "layout": "vertical",
+                # 既定 20px → 16px にして高さを約 20 % 圧縮
+                "paddingAll": "16px",
+                # 行間も少し詰める
+                "spacing": "sm",
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": "WEBフォームでの注文を開く",
+                        "weight": "bold",
+                        "size": "lg",
+                        "align": "center",
+                        "wrap": True,
+                        "color": "#ffffff"          # 背景がピンクなので文字は白
+                    },
+                    {
+                        "type": "button",
+                        "style": "primary",
+                        "height": "sm",             # ボタンも小さく
+                        "color": "#ffffff",
+                        "action": {
+                            "type": "uri",
+                            "label": "開く",
+                            "uri": url
+                        }
+                    }
                 ]
             }
         }
+
         line_bot_api.reply_message(
             event.reply_token,
             FlexSendMessage(alt_text="WEBフォーム", contents=flex)
