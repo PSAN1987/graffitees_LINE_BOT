@@ -797,7 +797,7 @@ def flex_inquiry():
                     "aspectMode": "cover",
                     "action": {
                         "type": "uri",
-                        "uri": "https://catalog-bot-zf1t.onrender.com/web_order_form"
+                        "uri": "https://graffitees-line-bot.onrender.com/web_order_form"
                     }
                 }
             }
