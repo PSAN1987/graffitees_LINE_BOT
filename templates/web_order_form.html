@@ -80,13 +80,14 @@
     .mt1 { margin-top: 1em; }
     .mb1 { margin-bottom: 1em; }
   </style>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 </head>
 <body>
 <div class="container">
   <h1>WEBフォーム注文</h1>
   <!-- 送信先: /submit_web_order_form  /  POST で送る -->
   <form id="orderForm" action="/submit_web_order_form" method="post">
-  <input type="hidden" name="lineUserId" value="{{ uid }}">
+  <input type="hidden" name="lineUserId" id="lineUserId">
   <!-- CSRF 用ワンタイムトークン -->
   <input type="hidden" name="form_token" value="{{ token }}">
     <!-- ▼ 製品選択（商品名 → 品番 → カラーNo → 商品カラー）▼ -->
@@ -402,6 +403,7 @@
 </div>
 
 <script>
+  
   /**********************************************
    * 1) 製品テーブル（ご提示いただいたデータをすべて統合）
    **********************************************/
@@ -1129,6 +1131,18 @@
     productNoSelect.addEventListener("change", setColorNoOptions);
     colorNoSelect.addEventListener("change", setColorNameOptions);
   });
+      // ページロード後に LIFF 初期化
+      document.addEventListener("DOMContentLoaded", async () => {
+      try {
+        await liff.init({ liffId: "{{ liff_id }}" });      // ← Flask から渡した変数
+        // プロフィール取得で userId を取得
+        const profile = await liff.getProfile();
+        document.getElementById("lineUserId").value = profile.userId;
+      } catch(e) {
+        console.error("LIFF error", e);
+        alert("LINEログインに失敗しました。");
+      }
+    });
 </script>
 </body>
 </html>
