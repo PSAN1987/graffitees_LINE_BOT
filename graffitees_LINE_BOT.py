@@ -1529,14 +1529,26 @@ def calculate_web_order_estimate(data: dict) -> dict:
     # PRICE_TABLE から該当行検索
     def _find():
         for row in PRICE_TABLE:
-            if (row["item"] == item and
-                row["discount_type"] == discount_type and
-                row["min_qty"] <= qty <= row["max_qty"]):
+            if (row["item"] == item 
+                and row["discount_type"] == discount_type 
+                and row["min_qty"] <= qty <= row["max_qty"]):
                 return row
         return None
+
     row = _find()
     if not row:
-        return 0,0   # 見つからない場合
+        # 見つからない場合は金額0を返すなど、適宜処理
+        return {
+            "unit_price": 0,
+            "total_price": 0,
+            "base_unit": 0,
+            "pos_add_fee": 0,
+            "color_fee": 0,
+            "back_name_fee": 0,
+            "option_ink_extra": 0,
+            "fullcolor_extra": 0,
+            "qty": qty
+        }
 
     base_unit   = row["unit_price"]
     pos_add_fee = row["pos_add"] * max(0, pos_cnt-1)
@@ -1545,43 +1557,71 @@ def calculate_web_order_estimate(data: dict) -> dict:
     color_add_cnt    = 0     # 2色なら+1、3色なら+2
     option_ink_extra = 0
     fullcolor_extra  = 0
+    back_name_fee    = 0     # 背ネーム・番号セット等の加算
+    # ↑ 従来の背ネーム類はここへ合算していく
 
     for p in range(1,5):
         if not data.get(f"printPositionNo{p}"):
             continue
 
-        # 1〜3色入力欄の実際入力色を数える
-        colors = [data.get(f"printColorOption{p}_{i}") for i in (1,2,3)]
-        colors = [c for c in colors if c]
-        if len(colors) == 2:   color_add_cnt += 1
-        elif len(colors) == 3: color_add_cnt += 2
+        # 1〜3色入力欄(プリントカラー・オプション)で実際に入力された値を取得
+        color_list = [
+            data.get(f"printColorOption{p}_1"),
+            data.get(f"printColorOption{p}_2"),
+            data.get(f"printColorOption{p}_3"),
+        ]
+        color_list = [c for c in color_list if c]  # 空文字除外
 
-        # 各色の属性チェック → オプションインク加算
-        for c in colors:
+        # 2色指定なら +1、3色指定なら +2
+        if len(color_list) == 2:
+            color_add_cnt += 1
+        elif len(color_list) == 3:
+            color_add_cnt += 2
+
+        # 各色の属性チェック
+        for c in color_list:
+            # (A) ネーム＆背番号セット/ネーム(大)/(小)/番号(大)/(小) が含まれていたら back_name_fee
+            if c in BACK_NAME_FEE:  
+                back_name_fee += BACK_NAME_FEE[c]
+
+            # (B) 特殊カラー(グリッター等)があれば SPECIAL_SINGLE_COLOR_FEE
+            if c in SPECIAL_SINGLE_COLOR_FEE:
+                back_name_fee += SPECIAL_SINGLE_COLOR_FEE[c]
+
+            # (C) COLOR_ATTR_MAP で "オプションインク" なら、option_ink_extra を加算
             if COLOR_ATTR_MAP.get(c) == "オプションインク":
                 option_ink_extra += OPTION_INK_EXTRA
 
-        # fullColorSizeX があればサイズ別に加算
-        fcs = data.get(f"fullColorSize{p}")          # 小／中／大
+        # フルカラーオプション
+        fcs = data.get(f"fullColorSize{p}")  # "S"/"M"/"L" など
         if fcs:
-            fullcolor_extra += FULLCOLOR_SIZE_FEE.get(fcs, 0)
+            fullcolor_extra += FULLCOLOR_SIZE_FEE.get(fcs, 0)  # サイズ別に加算
 
-    color_fee = color_add_cnt * row["color_add"] + fullcolor_extra + option_ink_extra
+        # 3) ネーム&番号カラーオプション（単色 or フチ付き）----------------
+        # 単色カラーを選択していた場合
+        single_color = data.get(f"singleColor{p}")
+        if single_color and single_color in SPECIAL_SINGLE_COLOR_FEE:
+            back_name_fee += SPECIAL_SINGLE_COLOR_FEE[single_color]
 
-    # 3) 背ネーム・番号類 ------------------------------
-    back_name_fee = 0
-    for p in range(1,5):
-        opt = data.get(f"nameNumberOption{p}")
-        if opt and opt in BACK_NAME_FEE:
-            back_name_fee += BACK_NAME_FEE[opt]
-
-        # カラー設定（単色＆特殊色）／フチ付き
-        single = data.get(f"singleColor{p}")          # 単色カラー名
-        edge   = data.get(f"edgeType{p}")             # フチ付き/なし
-        if single and single in SPECIAL_SINGLE_COLOR_FEE:
-            back_name_fee += SPECIAL_SINGLE_COLOR_FEE[single]
-        if edge and edge != "なし":
+        # フチ付きタイプを選択していた場合
+        edge_type = data.get(f"edgeType{p}")
+        if edge_type and edge_type != "なし":
+            # たとえばフチ付きは +100円
             back_name_fee += 100
+
+            # カスタムフチ色の場合、edgeCustomTextColor{p} / edgeCustomEdgeColor{p} / edgeCustomEdgeColor2_{p} の中に
+            # 特殊色があれば追加
+            edge_text = data.get(f"edgeCustomTextColor{p}")
+            edge_col1 = data.get(f"edgeCustomEdgeColor{p}")
+            edge_col2 = data.get(f"edgeCustomEdgeColor2_{p}")
+
+            for ec in (edge_text, edge_col1, edge_col2):
+                if ec and ec in SPECIAL_SINGLE_COLOR_FEE:
+                    back_name_fee += SPECIAL_SINGLE_COLOR_FEE[ec]
+
+    # カラー追加料金 (各1色目はベース料金に含まれている想定)
+    # color_add_cnt * row["color_add"] で追加料金
+    color_fee = color_add_cnt * row["color_add"] + fullcolor_extra + option_ink_extra
 
     # 4) 単価・合計 ---------------------------------
     unit_price  = base_unit + pos_add_fee + color_fee + back_name_fee
@@ -1596,7 +1636,7 @@ def calculate_web_order_estimate(data: dict) -> dict:
         "back_name_fee":    back_name_fee,
         "option_ink_extra": option_ink_extra,
         "fullcolor_extra":  fullcolor_extra,
-        "qty":              qty              # 合計枚数も入れておく
+        "qty":              qty
     }
 
 def make_order_summary(order_no: str,
