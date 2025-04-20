@@ -841,7 +841,7 @@ def handle_postback(event):
             "type": "bubble",
             # バブル自体の塗り色
             "styles": {
-                "body": { "backgroundColor": "#fc9cc2" }
+                "body": { "backgroundColor": "#fffff" }
             },
             "body": {
                 "type": "box",
@@ -862,7 +862,7 @@ def handle_postback(event):
                         "type": "button",
                         "style": "secondary",
                         "height": "sm",
-                        "color": "#ffffff",     # ボタン背景を白
+                        "color": "#fc9cc2",     # ボタン背景を白
                         "action": {
                             "type": "uri",
                             "label": "開く",
