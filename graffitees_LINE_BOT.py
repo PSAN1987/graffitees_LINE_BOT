@@ -814,7 +814,7 @@ def flex_inquiry():
                 "type": "bubble",
                 "hero": {
                     "type": "image",
-                    "url": "https://catalog-bot-zf1t.onrender.com/WEB_ORDER.png",
+                    "url": "https://catalog-bot-zf1t.onrender.com/WEB_ORDER_v1.png",
                     "size": "full",
                     "aspectRatio": "501:556",
                     "aspectMode": "cover",
