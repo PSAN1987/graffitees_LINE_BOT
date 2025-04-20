@@ -820,7 +820,7 @@ def flex_inquiry():
                     "aspectMode": "cover",
                     "action": {
                         "type": "uri",
-                        "uri": "https://graffitees-line-bot.onrender.com/web_order_form"
+                        "uri": f"line://app/{LIFF_ID}"   # ← これだけ"
                     }
                 }
             }
@@ -1307,10 +1307,13 @@ def submit_catalog_form():
 def show_web_order_form():
     token = str(uuid.uuid4())
     session["web_order_form_token"] = token
-
-    # Line LIFF から `uid` クエリパラメータで userId を受け取る想定
-    uid = request.args.get("uid", "")
-    return render_template("web_order_form.html", token=token, uid=uid)
+    liff_id = os.getenv("WEB_ORDER_LIFF_ID")
+    # uid はブラウザ側で取得するので渡さない
+    return render_template(
+        "web_order_form.html",
+        token=token,
+        liff_id=liff_id        # ← テンプレートに渡す
+    )
 
 @app.route("/submit_web_order_form", methods=["POST"])
 def submit_web_order_form():
