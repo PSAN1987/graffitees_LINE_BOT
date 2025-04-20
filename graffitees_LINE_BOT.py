@@ -791,7 +791,7 @@ def flex_inquiry():
                 "type": "bubble",
                 "hero": {
                     "type": "image",
-                    "url": "https://catalog-bot-zf1t.onrender.com/PRINT_LOCATION.png",
+                    "url": "https://catalog-bot-zf1t.onrender.com/WEB_ORDER.png",
                     "size": "full",
                     "aspectRatio": "501:556",
                     "aspectMode": "cover",
@@ -1433,6 +1433,12 @@ def write_to_spreadsheet_for_web_order(data: dict):
         data.get("designCheckMethod", ""),
         data.get("paymentMethod", "")
     ]
+    
+    # ---- 追加ここから ---------------------------------
+    # 必要な列数を満たしていなければ列を増やす
+    if len(row_values) > worksheet.col_count:
+        worksheet.add_cols(len(row_values) - worksheet.col_count)
+    # ---- 追加ここまで --------------------------------
 
     worksheet.append_row(row_values, value_input_option="USER_ENTERED")
 
