@@ -1327,7 +1327,7 @@ def submit_web_order_form():
     
     # ❸ スプレッドシートへ保存（追加で 3 変数を渡す）
     try:
-        write_to_spreadsheet_for_web_order(form_data)
+        write_to_spreadsheet_for_web_order(form_data, order_no, unit_price, total_price)
     except Exception as e:
         return f"エラーが発生しました: {e}", 500
 
@@ -1465,7 +1465,8 @@ def write_to_spreadsheet_for_web_order(data: dict, order_no: str, unit_price: in
     ]
     if len(row_values) + 3 > worksheet.col_count:
         worksheet.add_cols(len(row_values) + 3 - worksheet.col_count)
-        row_values.extend([order_no, unit_price, total_price])
+    #    
+    row_values.extend([order_no, unit_price, total_price])
     worksheet.append_row(row_values, value_input_option="USER_ENTERED")
     
 def calculate_web_order_estimate(data: dict):
