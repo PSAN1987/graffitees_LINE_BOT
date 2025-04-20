@@ -839,36 +839,34 @@ def handle_postback(event):
 
         flex = {
             "type": "bubble",
-            # ← 背景色を #fc9cc2 に
+            # バブル自体の塗り色
             "styles": {
                 "body": { "backgroundColor": "#fc9cc2" }
             },
             "body": {
                 "type": "box",
                 "layout": "vertical",
-                # 既定 20px → 16px にして高さを約 20 % 圧縮
-                "paddingAll": "16px",
-                # 行間も少し詰める
+                "paddingAll": "16px",   # 少しスリム
                 "spacing": "sm",
                 "contents": [
-                    {
+                    {   # 見出し（黒文字）
                         "type": "text",
                         "text": "WEBフォームでの注文を開く",
                         "weight": "bold",
                         "size": "lg",
                         "align": "center",
                         "wrap": True,
-                        "color": "#ffffff"          # 背景がピンクなので文字は白
+                        "color": "#000000"
                     },
-                    {
+                    {   # secondary ボタン → 白背景に黒文字
                         "type": "button",
-                        "style": "primary",
-                        "height": "sm",             # ボタンも小さく
-                        "color": "#ffffff",
+                        "style": "secondary",
+                        "height": "sm",
+                        "color": "#ffffff",     # ボタン背景を白
                         "action": {
                             "type": "uri",
                             "label": "開く",
-                            "uri": url
+                            "uri": url           # ← クリック先
                         }
                     }
                 ]
@@ -879,6 +877,7 @@ def handle_postback(event):
             event.reply_token,
             FlexSendMessage(alt_text="WEBフォーム", contents=flex)
         )
+
 # -----------------------
 # 1) LINE Messaging API 受信 (Webhook)
 # -----------------------
@@ -1521,7 +1520,7 @@ def write_to_spreadsheet_for_web_order(data: dict, order_no: str, unit_price: in
     row_values.extend([order_no, unit_price, total_price])
     worksheet.append_row(row_values, value_input_option="USER_ENTERED")
     
-def calculate_web_order_estimate(data: dict):
+def calculate_web_order_estimate(data: dict) -> dict:
     """Web オーダーフォーム１件ぶんの単価・合計金額を返す"""
 
     # 1) 基本行を PRICE_TABLE から取得 ------------------------------
@@ -1592,39 +1591,70 @@ def calculate_web_order_estimate(data: dict):
     # 4) 単価・合計 ---------------------------------
     unit_price  = base_unit + pos_add_fee + color_fee + back_name_fee
     total_price = unit_price * qty
-    return unit_price, total_price
 
-def make_order_summary(order_no: str, data: dict,
-                       unit_price: int, total_price: int) -> str:
-    """ユーザーへ送るサマリー文面"""
-    sizes = ", ".join(
-        f"{sz}:{data.get(sz_key,0)}枚"
-        for sz,sz_key in [("150","size150"),("SS","sizeSS"),("S","sizeS"),
-                          ("M","sizeM"),("L(F)","sizeL"),("LL(XL)","sizeXL"),
-                          ("3L","sizeXXL")]
-        if data.get(sz_key)
-    )
-    # プリント位置＆色
+    return {
+        "unit_price":       unit_price,
+        "total_price":      total_price,
+        "base_unit":        base_unit,
+        "pos_add_fee":      pos_add_fee,
+        "color_fee":        color_fee,
+        "back_name_fee":    back_name_fee,
+        "option_ink_extra": option_ink_extra,
+        "fullcolor_extra":  fullcolor_extra,
+        "qty":              qty              # 合計枚数も入れておく
+    }
+
+def make_order_summary(order_no: str,
+                       data: dict,
+                       est: dict) -> str:
+    """LINE に送るサマリー（日本語レイアウト & 価格内訳）"""
+
+    # サイズ別内訳（0 枚は表示しない）
+    size_map = [("150","size150"),("SS","sizeSS"),("S","sizeS"),
+                ("M","sizeM"),("L(F)","sizeL"),("LL(XL)","sizeXL"),
+                ("3L","sizeXXL")]
+    size_lines = [f"{label}:{data.get(key,0)}枚" for label,key in size_map]
+    size_block = ", ".join(size_lines)
+
+    # プリント位置＋色
     pos_lines = []
     for p in range(1,5):
         if not data.get(f"printPositionNo{p}"):
             continue
         cols = [data.get(f"printColorOption{p}_{i}") for i in (1,2,3)]
         cols = ", ".join([c for c in cols if c])
-        pos_lines.append(f"{p}) {data.get(f'printPositionNo{p}')}: {cols}")
-    pos_block = "\n".join(pos_lines)
+        pos_lines.append(f"{p}か所目 ({data.get(f'printPositionNo{p}')}) : {cols}")
+    pos_block = "\n".join(pos_lines) if pos_lines else "—"
 
+    # 背ネーム・番号
+    back_name = data.get("nameNumberOption1") or "—"
+
+    # 価格内訳
+    price_break_down = (
+        f"  ベース価格          ¥{est['base_unit']:,}\n"
+        f"  位置追加            +¥{est['pos_add_fee']:,}\n"
+        f"  色追加              +¥{est['color_fee']:,}\n"
+        f"  背ネーム・番号      +¥{est['back_name_fee']:,}\n"
+        "  -------------------------------\n"
+        f"  単価               ¥{est['unit_price']:,}\n"
+        f"  合計（{est['qty']}枚）   ¥{est['total_price']:,}"
+    )
+
+    # ---------------- 完成メッセージ ----------------
     return (
-      f"ご注文ありがとうございます！\n"
-      f"注文番号 : {order_no}\n"
-      f"商品     : {data.get('productName')} / {data.get('colorName')}\n"
-      f"サイズ別 : {sizes} (合計 {data.get('totalQuantity')} 枚)\n\n"
-      f"【プリント】\n{pos_block}\n\n"
-      f"【背ネーム・番号】\n"
-      f"{data.get('nameNumberOption1','―')}\n\n"
-      f"単価  : ¥{unit_price:,}\n"
-      f"合計  : ¥{total_price:,}\n\n"
-      "担当スタッフより追って詳細をご連絡いたしますので少々お待ちください。"
+        "ご注文ありがとうございます。\n\n"
+        f"注文番号: {order_no}\n"
+        f"商品: {data.get('productName')}\n"
+        f"商品カラー: {data.get('colorName')}\n"
+        f"サイズ別枚数: {size_block}\n"
+        f"合計枚数: {est['qty']} 枚\n\n"
+        "【プリントカラー】\n"
+        f"{pos_block}\n\n"
+        "【番号・ネーム情報】\n"
+        f"{back_name}\n\n"
+        "【価格内訳（1枚あたり）】\n"
+        f"{price_break_down}\n\n"
+        "担当スタッフより追って詳細をご連絡いたしますので少々お待ちください。"
     )
 
 # -----------------------
