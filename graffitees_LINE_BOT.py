@@ -83,41 +83,56 @@ def get_or_create_worksheet(sheet, title):
                 "合計金額", "単価"
             ]])
         elif title == "WebOrderRequests":
-            headers = [                          # ← ★ここで 101 列分のリストを定義
-                "日時",
-                "商品名", "品番", "カラーNo", "商品カラー",
-                "size150", "sizeSS", "sizeS", "sizeM", "sizeL", "sizeXL", "sizeXXL", "合計枚数",
+            headers = [
+    # 基本情報 --------------------------------------------------------
+    "日時",
+    "商品名", "品番", "カラー番号", "商品カラー",
+    "150サイズ枚数", "SSサイズ枚数", "Sサイズ枚数", "Mサイズ枚数",
+    "L(F)サイズ枚数", "LL(XL)サイズ枚数", "3L(XXL)サイズ枚数", "合計枚数",
 
-                "printPositionNo1", "nameNumberOption1", "nameNumberPrintType1",
-                "singleColor1", "edgeType1", "edgeCustomTextColor1", "edgeCustomEdgeColor1", "edgeCustomEdgeColor2_1",
-                "fontType1", "fontNumber1",
-                "printColorOption1_1", "printColorOption1_2", "printColorOption1_3", "fullColorSize1",
-                "designCode1", "designSize1", "designSizeX1", "designSizeY1",
+    # ── １ヵ所目 ─────────────────────────────────────────
+    "プリント位置No1", "ネーム・番号オプション1", "ネーム・番号プリント種別1",
+    "単色カラー1", "フチ付きタイプ1",
+    "文字色1", "フチ色1(1)", "フチ色2(1)",
+    "フォント種別1", "フォント番号1",
+    "プリントカラー1色目(1)", "プリントカラー2色目(1)", "プリントカラー3色目(1)",
+    "フルカラーサイズ1",
+    "デザイン番号1", "デザインサイズ種別1", "デザイン幅cm1", "デザイン高さcm1",
 
-                "printPositionNo2", "nameNumberOption2", "nameNumberPrintType2",
-                "singleColor2", "edgeType2", "edgeCustomTextColor2", "edgeCustomEdgeColor2", "edgeCustomEdgeColor2_2",
-                "fontType2", "fontNumber2",
-                "printColorOption2_1", "printColorOption2_2", "printColorOption2_3", "fullColorSize2",
-                "designCode2", "designSize2", "designSizeX2", "designSizeY2",
+    # ── ２ヵ所目 ─────────────────────────────────────────
+    "プリント位置No2", "ネーム・番号オプション2", "ネーム・番号プリント種別2",
+    "単色カラー2", "フチ付きタイプ2",
+    "文字色2", "フチ色1(2)", "フチ色2(2)",
+    "フォント種別2", "フォント番号2",
+    "プリントカラー1色目(2)", "プリントカラー2色目(2)", "プリントカラー3色目(2)",
+    "フルカラーサイズ2",
+    "デザイン番号2", "デザインサイズ種別2", "デザイン幅cm2", "デザイン高さcm2",
 
-                "printPositionNo3", "nameNumberOption3", "nameNumberPrintType3",
-                "singleColor3", "edgeType3", "edgeCustomTextColor3", "edgeCustomEdgeColor3", "edgeCustomEdgeColor2_3",
-                "fontType3", "fontNumber3",
-                "printColorOption3_1", "printColorOption3_2", "printColorOption3_3", "fullColorSize3",
-                "designCode3", "designSize3", "designSizeX3", "designSizeY3",
+    # ── ３ヵ所目 ─────────────────────────────────────────
+    "プリント位置No3", "ネーム・番号オプション3", "ネーム・番号プリント種別3",
+    "単色カラー3", "フチ付きタイプ3",
+    "文字色3", "フチ色1(3)", "フチ色2(3)",
+    "フォント種別3", "フォント番号3",
+    "プリントカラー1色目(3)", "プリントカラー2色目(3)", "プリントカラー3色目(3)",
+    "フルカラーサイズ3",
+    "デザイン番号3", "デザインサイズ種別3", "デザイン幅cm3", "デザイン高さcm3",
 
-                "printPositionNo4", "nameNumberOption4", "nameNumberPrintType4",
-                "singleColor4", "edgeType4", "edgeCustomTextColor4", "edgeCustomEdgeColor4", "edgeCustomEdgeColor2_4",
-                "fontType4", "fontNumber4",
-                "printColorOption4_1", "printColorOption4_2", "printColorOption4_3", "fullColorSize4",
-                "designCode4", "designSize4", "designSizeX4", "designSizeY4",
+    # ── ４ヵ所目 ─────────────────────────────────────────
+    "プリント位置No4", "ネーム・番号オプション4", "ネーム・番号プリント種別4",
+    "単色カラー4", "フチ付きタイプ4",
+    "文字色4", "フチ色1(4)", "フチ色2(4)",
+    "フォント種別4", "フォント番号4",
+    "プリントカラー1色目(4)", "プリントカラー2色目(4)", "プリントカラー3色目(4)",
+    "フルカラーサイズ4",
+    "デザイン番号4", "デザインサイズ種別4", "デザイン幅cm4", "デザイン高さcm4",
 
-                "希望お届け日", "使用日", "申込日", "利用する学割特典",
-                "学校名", "LINEの名前", "クラス・団体名",
-                "郵便番号", "住所1", "住所2", "学校TEL",
-                "代表者", "代表者TEL", "代表者メール",
-                "デザイン確認方法", "お支払い方法"
-        ]
+    # 発送・連絡先など --------------------------------------------------
+    "希望お届け日", "使用日", "申込日", "利用学割特典",
+    "学校名", "LINE名", "クラス・団体名",
+    "郵便番号", "住所1", "住所2", "学校TEL",
+    "代表者", "代表者TEL", "代表者メール",
+    "デザイン確認方法", "お支払い方法"
+]
             # ❶ 必要な列数を確保（あとで行追加時に不足すると困るため）
             ws.resize(rows=2000, cols=len(headers))
             # ❷ A1 だけを指定してヘッダーを書き込む
