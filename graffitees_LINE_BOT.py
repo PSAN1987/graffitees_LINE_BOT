@@ -1365,28 +1365,25 @@ def show_web_order_form():
 
 @app.route("/submit_web_order_form", methods=["POST"])
 def submit_web_order_form():
-
-    # …トークン重複チェックは既存のまま …
-
     form_data = {k: request.form.get(k, "").strip() for k in request.form}
-    # ❶ 見積計算
-    unit_price, total_price = calculate_web_order_estimate(form_data)
 
-    # ❷ 注文番号生成（日時＋乱数などで一意に）
+    # ❶ ここを書き換え
+    est = calculate_web_order_estimate(form_data)         # ← dict が返る
+    unit_price  = est["unit_price"]
+    total_price = est["total_price"]
+
+    # ❷ 注文番号生成などはそのまま
     jst = pytz.timezone('Asia/Tokyo')
     order_no = datetime.now(jst).strftime("%Y%m%d%H%M%S")
-    
-    # ❸ スプレッドシートへ保存（追加で 3 変数を渡す）
-    try:
-        write_to_spreadsheet_for_web_order(form_data, order_no, unit_price, total_price)
-    except Exception as e:
-        return f"エラーが発生しました: {e}", 500
 
-    # ④ ユーザーへプッシュ通知
+    # ❸ スプレッドシート保存
+    write_to_spreadsheet_for_web_order(form_data, order_no,
+                                       unit_price, total_price)
+
+    # ❹ ユーザーへプッシュ
     uid = form_data.get("lineUserId")
     if uid:
-        summary_msg = make_order_summary(order_no, form_data,
-                                         unit_price, total_price)
+        summary_msg = make_order_summary(order_no, form_data, est)  # ← est を渡す
         line_bot_api.push_message(uid, TextSendMessage(text=summary_msg))
 
     return "フォーム送信ありがとうございました！", 200
