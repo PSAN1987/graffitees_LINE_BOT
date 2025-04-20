@@ -691,7 +691,7 @@ SPECIAL_SINGLE_COLOR_FEE = {                   # 単色＋メタリック系 etc
 
 FULLCOLOR_SIZE_FEE = { "小":350, "中":550, "大":990 }   # fullColorSizeX 値
 BACK_NAME_FEE = {        # nameNumberOptionX に応じた固定費
-    "ネーム&背番号セット":800,
+    "ネーム＆背番号セット":800,
     "ネーム(大)":550, "ネーム(小)":300,
     "番号(大)":300, "番号(小)":300
 }
