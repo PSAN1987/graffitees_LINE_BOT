@@ -1660,10 +1660,7 @@ def make_order_summary(order_no: str,
         cols = ", ".join([c for c in cols if c])
         pos_lines.append(f"{p}か所目 ({data.get(f'printPositionNo{p}')}) : {cols}")
     pos_block = "\n".join(pos_lines) if pos_lines else "—"
-
-    # 背ネーム・番号
-    back_name = data.get("nameNumberOption1") or "—"
-
+    
     # 価格内訳
     price_break_down = (
         f"  ベース価格          ¥{est['base_unit']:,}\n"
