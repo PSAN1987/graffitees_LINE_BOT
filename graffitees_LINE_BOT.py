@@ -132,6 +132,7 @@ def get_or_create_worksheet(sheet, title):
     "郵便番号", "住所1", "住所2", "学校TEL",
     "代表者", "代表者TEL", "代表者メール",
     "デザイン確認方法", "お支払い方法"
+    "注文番号", "単価", "合計金額"      # ★追加
 ]
             # ❶ 必要な列数を確保（あとで行追加時に不足すると困るため）
             ws.resize(rows=2000, cols=len(headers))
@@ -173,6 +174,7 @@ def write_to_spreadsheet_for_catalog(form_data: dict):
 # 簡易見積用データ構造
 # -----------------------
 from PRICE_TABLE_2025 import PRICE_TABLE, COLOR_COST_MAP
+from collections import defaultdict
 
 # ▼▼▼ 新規: プリント位置が「前のみ/背中のみ」のときの色数選択肢および対応コスト
 COLOR_COST_MAP_SINGLE = {
@@ -1316,20 +1318,20 @@ def submit_web_order_form():
     # …トークン重複チェックは既存のまま …
 
     form_data = {k: request.form.get(k, "").strip() for k in request.form}
-
-    try:
-        write_to_spreadsheet_for_web_order(form_data)
-    except Exception as e:
-        return f"エラーが発生しました: {e}", 500
-
     # ❶ 見積計算
     unit_price, total_price = calculate_web_order_estimate(form_data)
 
     # ❷ 注文番号生成（日時＋乱数などで一意に）
     jst = pytz.timezone('Asia/Tokyo')
     order_no = datetime.now(jst).strftime("%Y%m%d%H%M%S")
+    
+    # ❸ スプレッドシートへ保存（追加で 3 変数を渡す）
+    try:
+        write_to_spreadsheet_for_web_order(form_data)
+    except Exception as e:
+        return f"エラーが発生しました: {e}", 500
 
-    # ❸ ユーザーへプッシュ通知
+    # ④ ユーザーへプッシュ通知
     uid = form_data.get("lineUserId")
     if uid:
         summary_msg = make_order_summary(order_no, form_data,
@@ -1339,7 +1341,7 @@ def submit_web_order_form():
     return "フォーム送信ありがとうございました！", 200
 
 
-def write_to_spreadsheet_for_web_order(data: dict):
+def write_to_spreadsheet_for_web_order(data: dict, order_no: str, unit_price: int, total_price: int):
     """
     Webフォーム注文データを新しいシート "WebOrderRequests" に書き込む
     """
@@ -1461,16 +1463,11 @@ def write_to_spreadsheet_for_web_order(data: dict):
         data.get("designCheckMethod", ""),
         data.get("paymentMethod", "")
     ]
-    
-   # ---- 追加ここから ---------------------------------
-    # 必要な列数を満たしていなければ列を増やす
-    if len(row_values) > worksheet.col_count:
-        worksheet.add_cols(len(row_values) - worksheet.col_count)
-    # ---- 追加ここまで --------------------------------
-
-    row_values.extend([order_no, unit_price, total_price])
+    if len(row_values) + 3 > worksheet.col_count:
+        worksheet.add_cols(len(row_values) + 3 - worksheet.col_count)
+        row_values.extend([order_no, unit_price, total_price])
     worksheet.append_row(row_values, value_input_option="USER_ENTERED")
-
+    
 def calculate_web_order_estimate(data: dict):
     """Web オーダーフォーム１件ぶんの単価・合計金額を返す"""
 
