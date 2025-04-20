@@ -835,7 +835,7 @@ def flex_inquiry():
 def handle_postback(event):
     if event.postback.data == "WEB_ORDER":
         uid = event.source.user_id
-        url = f"https://catalog-bot-1.onrender.com/webform?uid={uid}"
+        url = f"https://catalog-bot-1.onrender.com/web_order_form?uid={uid}"
 
         flex = {
             "type":"bubble",
