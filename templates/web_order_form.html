@@ -84,9 +84,8 @@
 <body>
 <div class="container">
   <h1>WEBフォーム注文</h1>
-  <form id="orderForm"
-      action="/submit_web_order_form"   <!-- 送信先 -->
-      method="post">                    <!-- POST で送る -->
+  <!-- 送信先: /submit_web_order_form  /  POST で送る -->
+  <form id="orderForm" action="/submit_web_order_form" method="post">
   <!-- CSRF 用ワンタイムトークン -->
   <input type="hidden" name="form_token" value="{{ token }}">
     <!-- ▼ 製品選択（商品名 → 品番 → カラーNo → 商品カラー）▼ -->
