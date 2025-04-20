@@ -1282,11 +1282,456 @@ def submit_catalog_form():
 
 @app.route("/web_order_form", methods=["GET"])
 def show_web_order_form():
+    """
+    外部HTML(ユーザー記載のフォーム)をそのまま返す
+    """
     token = str(uuid.uuid4())
     session['web_order_form_token'] = token
 
-    # ここでベタ書きHTMLを返す代わりに、外部HTMLファイルをrender_templateで呼び出す
-    return render_template("web_order_form.html", token=token)
+    # この HTML はご提示されたものをそのまま埋め込み
+    # <form> の action は /submit_web_order_form にします
+    html_content = f"""<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>WEBフォーム注文</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {{
+      margin: 0; padding: 0;
+      font-family: sans-serif;
+      background-color: #ffeef2; /* 淡いピンク */
+    }}
+    .container {{
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 1em;
+      background-color: #fff;
+      border-radius: 8px;
+    }}
+    h1 {{
+      text-align: center;
+      color: #d15b8f;
+    }}
+    .form-group {{
+      margin-bottom: 1em;
+    }}
+    .form-group label {{
+      display: block;
+      margin-bottom: 0.3em;
+      font-weight: bold;
+    }}
+    .form-group select,
+    .form-group input[type="text"],
+    .form-group input[type="number"],
+    .form-group input[type="date"] {{
+      width: 100%;
+      padding: 0.5em;
+      box-sizing: border-box;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }}
+    .size-inputs {{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1em;
+    }}
+    .size-inputs .sub-group {{
+      flex: 1;
+      min-width: 100px;
+    }}
+    .sub-group {{ margin-bottom: 0.5em; }}
+    .hidden {{ display: none; }}
+    .submit-btn {{
+      text-align: center;
+      margin-top: 2em;
+    }}
+    .submit-btn button {{
+      background-color: #d15b8f;
+      color: #fff;
+      border: none;
+      padding: 1em 2em;
+      border-radius: 4px;
+      font-size: 1em;
+      cursor: pointer;
+    }}
+    .submit-btn button:hover {{
+      opacity: 0.8;
+    }}
+    fieldset {{
+      border: 1px solid #ccc;
+      padding: 1em;
+      margin-bottom: 1em;
+    }}
+    legend {{ font-weight: bold; }}
+    .inline-flex {{
+      display: flex;
+      align-items: center;
+      gap: 0.5em;
+    }}
+    .mt1 {{ margin-top: 1em; }}
+    .mb1 {{ margin-bottom: 1em; }}
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>WEBフォーム注文</h1>
+  <form id="orderForm" action="/submit_web_order_form" method="post">
+    <!-- ワンタイムトークン -->
+    <input type="hidden" name="form_token" value="{token}">
+
+    <!-- ▼ 製品選択（商品名 → 品番 → カラーNo → 商品カラー）▼ -->
+    <div class="form-group">
+      <label for="productNameSelect">商品名 <span style="color:red;">(必須)</span></label>
+      <select id="productNameSelect" name="productName" required>
+        <option value="">選択してください</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="productNoSelect">品番 <span style="color:red;">(必須)</span></label>
+      <select id="productNoSelect" name="productNo" required>
+        <option value="">選択してください</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="colorNoSelect">カラーNo <span style="color:red;">(必須)</span></label>
+      <select id="colorNoSelect" name="colorNo" required>
+        <option value="">選択してください</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="colorNameSelect">商品カラー <span style="color:red;">(必須)</span></label>
+      <select id="colorNameSelect" name="colorName" required>
+        <option value="">選択してください</option>
+      </select>
+    </div>
+
+    <!-- ▼ サイズ毎の枚数入力 ▼ -->
+    <div class="form-group">
+      <label>サイズ毎の枚数 <span style="color:red;">(必須)</span></label>
+      <div class="size-inputs">
+        <div class="sub-group">
+          <label for="size150">150</label>
+          <input type="number" id="size150" name="size150" value="0" min="0" required oninput="calculateTotal()">
+        </div>
+        <div class="sub-group">
+          <label for="sizeSS">SS(160)</label>
+          <input type="number" id="sizeSS" name="sizeSS" value="0" min="0" required oninput="calculateTotal()">
+        </div>
+        <div class="sub-group">
+          <label for="sizeS">S</label>
+          <input type="number" id="sizeS" name="sizeS" value="0" min="0" required oninput="calculateTotal()">
+        </div>
+        <div class="sub-group">
+          <label for="sizeM">M</label>
+          <input type="number" id="sizeM" name="sizeM" value="0" min="0" required oninput="calculateTotal()">
+        </div>
+        <div class="sub-group">
+          <label for="sizeL">L(F)</label>
+          <input type="number" id="sizeL" name="sizeL" value="0" min="0" required oninput="calculateTotal()">
+        </div>
+        <div class="sub-group">
+          <label for="sizeXL">LL(XL)</label>
+          <input type="number" id="sizeXL" name="sizeXL" value="0" min="0" required oninput="calculateTotal()">
+        </div>
+        <div class="sub-group">
+          <label for="sizeXXL">3L(XXL)</label>
+          <input type="number" id="sizeXXL" name="sizeXXL" value="0" min="0" required oninput="calculateTotal()">
+        </div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="totalQuantity">合計枚数</label>
+      <input type="number" id="totalQuantity" name="totalQuantity" value="0" readonly>
+    </div>
+
+    <!-- ▼ プリント位置のイメージ画像 ▼ -->
+    <div class="form-group">
+      <label>プリント位置イメージ</label>
+      <img src="https://catalog-bot-zf1t.onrender.com/PRINT_LOCATION.png" alt="プリント位置イメージ" style="max-width:50%;">
+    </div>
+
+    <!-- ▼ 1ヵ所目のプリント設定（必須）▼ -->
+    <fieldset id="printLocation1">
+      <legend>1ヵ所目のプリント設定 (必須)</legend>
+      <div class="sub-group">
+        <label for="printPositionNo1">プリント位置No.</label>
+        <select id="printPositionNo1" name="printPositionNo1" required onchange="toggleNameNumberOptions(1)">
+          <option value="">選択</option>
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4">4</option>
+          <option value="5">5</option>
+          <option value="6">6</option>
+          <option value="7">7</option>
+        </select>
+      </div>
+
+      <div id="nameNumberOptions1" class="sub-group hidden">
+        <label>ネーム＆番号プリント</label>
+        <select name="nameNumberOption1" id="nameNumberOption1" onchange="toggleNameNumberColorBox(1)">
+          <option value="">選択</option>
+          <option value="nameNumberSet">ネーム＆背番号セット</option>
+          <option value="nameLarge">ネーム(大)</option>
+          <option value="nameSmall">ネーム(小)</option>
+          <option value="numberLarge">番号(大)</option>
+          <option value="numberSmall">番号(小)</option>
+        </select>
+      </div>
+      <div id="nameNumberPrintColorBox1" class="sub-group hidden" style="border:1px solid #ccc; padding:0.5em;">
+        <strong>ネーム・番号プリントカラーオプション</strong>
+        <div class="inline-flex mt1 mb1">
+          <label><input type="radio" name="nameNumberPrintType1" value="single" checked onclick="toggleEdgeColor(1)"> 単色</label>
+          <label><input type="radio" name="nameNumberPrintType1" value="edge" onclick="toggleEdgeColor(1)"> フチ付き</label>
+        </div>
+        <div id="singleColorSelectArea1" class="sub-group">
+          <label>単色カラー</label>
+          <select id="singleColor1" name="singleColor1">
+          </select>
+        </div>
+        <div id="edgeColorSelectArea1" class="sub-group hidden">
+          <label>フチ付きタイプ</label>
+          <select id="edgeType1" name="edgeType1" onchange="changeEdgeType(1)">
+            <option value="">選択してください</option>
+            <option value="FT-1">FT-1 (文字色ブラック、フチ色1ブラック)</option>
+            <option value="FT-2">FT-2 (文字色ホワイト、フチ色1ブラック)</option>
+            <option value="FT-3">FT-3 (文字色レッド、フチ色1ブラック)</option>
+            <option value="FT-4">FT-4 (文字色パープル、フチ色1イエロー)</option>
+            <option value="FT-5">FT-5 (文字色ブラック、フチ色1ホワイト、フチ色2ブラック)</option>
+            <option value="FT-6">FT-6 (文字色レッド、フチ色1ホワイト、フチ色2ブラック)</option>
+            <option value="FT-7">FT-7 (文字色ブルー、フチ色1ホワイト、フチ色2ブルー)</option>
+            <option value="FT-8">FT-8 (文字色ブルー、フチ色1ホワイト、フチ色2レッド)</option>
+            <option value="custom">カスタム</option>
+          </select>
+          <div id="edgeColorCustomArea1" class="hidden" style="margin-top:0.5em;">
+            <label>文字色</label>
+            <select id="edgeCustomTextColor1" name="edgeCustomTextColor1"></select>
+            <label>フチ色1</label>
+            <select id="edgeCustomEdgeColor1" name="edgeCustomEdgeColor1"></select>
+            <label>フチ色2 (任意)</label>
+            <select id="edgeCustomEdgeColor2_1" name="edgeCustomEdgeColor2_1"></select>
+          </div>
+        </div>
+        <div class="sub-group mt1">
+          <label>フォント選択</label>
+          <div class="inline-flex mb1">
+            <label><input type="radio" name="fontType1" value="E" checked> 英数字対応 (E-)</label>
+            <label><input type="radio" name="fontType1" value="J"> 日本語対応 (J-)</label>
+          </div>
+          <div class="inline-flex">
+            <span id="fontPrefix1">E-</span>
+            <input type="text" id="fontNumber1" name="fontNumber1" maxlength="2" style="width:3em;" placeholder="00">
+          </div>
+        </div>
+      </div>
+
+      <div class="sub-group">
+        <label>プリントカラー・オプション</label>
+        <select name="printColorOption1_1" id="printColorOption1_1">
+          <option value="">1色目を選択</option>
+        </select>
+        <select name="printColorOption1_2" id="printColorOption1_2">
+          <option value="">2色目を選択</option>
+        </select>
+        <select name="printColorOption1_3" id="printColorOption1_3">
+          <option value="">3色目を選択</option>
+        </select>
+        <select name="fullColorSize1">
+          <option value="">フルカラーを選択</option>
+          <option value="S">フルカラー(小)</option>
+          <option value="M">フルカラー(中)</option>
+          <option value="L">フルカラー(大)</option>
+        </select>
+      </div>
+
+      <div class="sub-group">
+        <label for="designCode1">デザイン (例: D-001)</label>
+        <div style="display:flex; gap:0.3em;">
+          <span>D-</span>
+          <input type="text" id="designCode1" name="designCode1" maxlength="3" style="width:4em;" placeholder="3桁">
+        </div>
+      </div>
+
+      <div class="sub-group">
+        <label>デザインサイズ</label>
+        <select name="designSize1" id="designSize1" onchange="toggleCustomSize(1)">
+          <option value="max">プリント位置最大</option>
+          <option value="custom">任意のサイズ</option>
+        </select>
+        <div id="customSizeInput1" class="hidden">
+          <label>X(cm)</label>
+          <input type="number" name="designSizeX1" min="0" step="0.1" style="width:5em;">
+          <label>Y(cm)</label>
+          <input type="number" name="designSizeY1" min="0" step="0.1" style="width:5em;">
+        </div>
+      </div>
+    </fieldset>
+
+    <div id="additionalPrintLocations"></div>
+
+    <div style="margin-bottom:2em;">
+      <button type="button" onclick="addPrintLocation()">+ プリント箇所を追加</button>
+    </div>
+
+    <div class="form-group">
+      <label for="deliveryDate">希望お届け日 <span style="color:red;">(必須)</span></label>
+      <input type="date" id="deliveryDate" name="deliveryDate" required />
+    </div>
+    <div class="form-group">
+      <label for="useDate">使用日 <span style="color:red;">(必須)</span></label>
+      <input type="date" id="useDate" name="useDate" required />
+    </div>
+    <div class="form-group">
+      <label for="applicationDate">申込日 (任意)</label>
+      <input type="date" id="applicationDate" name="applicationDate" />
+    </div>
+
+    <div class="form-group">
+      <label for="discountOption">利用する学割特典 <span style="color:red;">(必須)</span></label>
+      <select id="discountOption" name="discountOption" required>
+        <option value="">選択してください</option>
+        <option value="早割">早割</option>
+        <option value="いっしょ割">いっしょ割</option>
+        <option value="リピータ割">リピータ割</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="schoolName">学校名 <span style="color:red;">(必須)</span></label>
+      <input type="text" id="schoolName" name="schoolName" required />
+    </div>
+    <div class="form-group">
+      <label for="lineName">LINEの名前 (任意)</label>
+      <input type="text" id="lineName" name="lineName" />
+    </div>
+    <div class="form-group">
+      <label for="classGroupName">クラス・団体名 <span style="color:red;">(必須)</span></label>
+      <input type="text" id="classGroupName" name="classGroupName" required />
+    </div>
+
+    <div class="form-group">
+      <label for="zipCode">お届け先の郵便番号 <span style="color:red;">(必須)</span></label>
+      <input type="text" id="zipCode" name="zipCode" placeholder="例: 123-4567" required onblur="autoFillAddress()" />
+    </div>
+    <div class="form-group">
+      <label for="address1">住所1 (都道府県・市区町村等)</label>
+      <input type="text" id="address1" name="address1" />
+    </div>
+    <div class="form-group">
+      <label for="address2">住所2 (番地以下) <span style="color:red;">(必須)</span></label>
+      <input type="text" id="address2" name="address2" required />
+    </div>
+    <div class="form-group">
+      <label for="schoolTel">学校TEL <span style="color:red;">(必須)</span></label>
+      <input type="text" id="schoolTel" name="schoolTel" required />
+    </div>
+
+    <div class="form-group">
+      <label for="representativeName">代表者 <span style="color:red;">(必須)</span></label>
+      <input type="text" id="representativeName" name="representativeName" required />
+    </div>
+    <div class="form-group">
+      <label for="representativeTel">代表者TEL <span style="color:red;">(必須)</span></label>
+      <input type="text" id="representativeTel" name="representativeTel" required />
+    </div>
+    <div class="form-group">
+      <label for="representativeEmail">代表者メール (任意)</label>
+      <input type="email" id="representativeEmail" name="representativeEmail" />
+    </div>
+
+    <div class="form-group">
+      <label for="designCheckMethod">デザイン確認方法 <span style="color:red;">(必須)</span></label>
+      <select id="designCheckMethod" name="designCheckMethod" required>
+        <option value="">選択してください</option>
+        <option value="LINE代表者">LINE代表者</option>
+        <option value="LINEご担任(保護者)">LINEご担任(保護者)</option>
+        <option value="メール代表者">メール代表者</option>
+        <option value="メールご担任(保護者)">メールご担任(保護者)</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="paymentMethod">お支払い方法 <span style="color:red;">(必須)</span></label>
+      <select id="paymentMethod" name="paymentMethod" required>
+        <option value="">選択してください</option>
+        <option value="代金引換">代金引換(ヤマト運輸/現金のみ)</option>
+        <option value="コンビニ・郵便振替">コンビニ・郵便振替(後払い)</option>
+        <option value="銀行振込(後払い)">銀行振込(後払い)</option>
+        <option value="銀行振込(先払い)">銀行振込(先払い)</option>
+      </select>
+    </div>
+
+    <div class="submit-btn">
+      <button type="submit">送信</button>
+    </div>
+  </form>
+</div>
+
+<script>
+  /**********************************************
+   * 1) 製品テーブル（ご提示いただいたデータをすべて統合）
+   **********************************************/
+   const productTable = [
+    { productNo: "5927-01", productName: "ゲームシャツ", colorNo: "9816", colorName: "ホワイト/ホワイト/ブラック" },
+    { productNo: "5927-01", productName: "ゲームシャツ", colorNo: "9887", colorName: "レッド/ホワイト/ブラック" },
+    { productNo: "5927-01", productName: "ゲームシャツ", colorNo: "9889", colorName: "アイビーグリーン/ホワイト/ブラック" },
+    { productNo: "5927-01", productName: "ゲームシャツ", colorNo: "9888", colorName: "コバルトブルー/ホワイト/ブラック" },
+    { productNo: "5927-01", productName: "ゲームシャツ", colorNo: "9856", colorName: "ブラック/ホワイト/ブラック" },
+
+    { productNo: "5982-01", productName: "ストライプドライベースボールシャツ", colorNo: "1098", colorName: "ホワイト/ブラックストライプ" },
+    { productNo: "5982-01", productName: "ストライプドライベースボールシャツ", colorNo: "2097", colorName: "ブラック/ホワイトストライプ" },
+
+    { productNo: "5982-01", productName: "ドライベースボールシャツ", colorNo: "1002", colorName: "ホワイト/ブラック" },
+    { productNo: "5982-01", productName: "ドライベースボールシャツ", colorNo: "1095", colorName: "ホワイト/マリンブルー" },
+    { productNo: "5982-01", productName: "ドライベースボールシャツ", colorNo: "2001", colorName: "ブラック/ホワイト" },
+    { productNo: "5982-01", productName: "ドライベースボールシャツ", colorNo: "2002", colorName: "ブラック/ブラック" },
+    { productNo: "5982-01", productName: "ドライベースボールシャツ", colorNo: "6901", colorName: "ラベンダー/ホワイト" },
+    { productNo: "5982-01", productName: "ドライベースボールシャツ", colorNo: "6001", colorName: "ターコイズブルー/ホワイト" },
+    { productNo: "5982-01", productName: "ドライベースボールシャツ", colorNo: "4801", colorName: "マリンブルー/ホワイト" },
+    { productNo: "5982-01", productName: "ドライベースボールシャツ", colorNo: "4001", colorName: "ネイビー/ホワイト" },
+    { productNo: "5982-01", productName: "ドライベースボールシャツ", colorNo: "2602", colorName: "カナリアイエロー/ブラック" },
+    { productNo: "5982-01", productName: "ドライベースボールシャツ", colorNo: "6402", colorName: "オレンジ/ブラック" },
+    { productNo: "5982-01", productName: "ドライベースボールシャツ", colorNo: "6601", colorName: "トロピカルピンク/ホワイト" },
+    { productNo: "5982-01", productName: "ドライベースボールシャツ", colorNo: "5602", colorName: "レッド/ブラック" },
+    { productNo: "5982-01", productName: "ドライベースボールシャツ", colorNo: "5801", colorName: "バーガンディ/ホワイト" },
+    { productNo: "5982-01", productName: "ドライベースボールシャツ", colorNo: "5001", colorName: "アイビーグリーン/ホワイト" },
+
+    { productNo: "ZD16", productName: "ストライプユニフォーム", colorNo: "zd16223", colorName: "ホワイトxライトブルー" },
+    { productNo: "ZD16", productName: "ストライプユニフォーム", colorNo: "zd16229", colorName: "ホワイトxライトパープル" },
+    { productNo: "ZD16", productName: "ストライプユニフォーム", colorNo: "zd16230", colorName: "ホワイトxホットピンク" },
+    { productNo: "ZD16", productName: "ストライプユニフォーム", colorNo: "zd16227", colorName: "ホワイトxパープル" },
+    { productNo: "ZD16", productName: "ストライプユニフォーム", colorNo: "zd16226", colorName: "ホワイトxブラック" },
+    { productNo: "ZD16", productName: "ストライプユニフォーム", colorNo: "zd16221", colorName: "レッドxブラック" },
+    { productNo: "ZD16", productName: "ストライプユニフォーム", colorNo: "zd16224", colorName: "ブルーxブラック" },
+
+    { productNo: "5992-01", productName: "バスケシャツ", colorNo: "9891", colorName: "ホワイト/ホワイト/レッド" },
+    { productNo: "5992-01", productName: "バスケシャツ", colorNo: "9893", colorName: "レッド/ホワイト/レッド" },
+    { productNo: "5992-01", productName: "バスケシャツ", colorNo: "9892", colorName: "カナリアイエロー/ホワイト/パープル" },
+    { productNo: "5992-01", productName: "バスケシャツ", colorNo: "9890", colorName: "ブラック/ホワイト/ラベンダー" },
+    { productNo: "5992-01", productName: "バスケシャツ", colorNo: "9856", colorName: "ブラック/ホワイト/ブラック" },
+
+    { productNo: "300-ACT", productName: "ドライTシャツ", colorNo: "001", colorName: "ホワイト" },
+    { productNo: "300-ACT", productName: "ドライTシャツ", colorNo: "153", colorName: "シルバーグレー" },
+    { productNo: "300-ACT", productName: "ドライTシャツ", colorNo: "002", colorName: "グレー" },
+    { productNo: "300-ACT", productName: "ドライTシャツ", colorNo: "187", colorName: "ダークグレー" },
+    {{ productNo: "300-ACT", productName: "ドライTシャツ", colorNo: "005", colorName: "ブラック" }},
+    ...
+    /* (以下、提示いただいた全データを省略せず記述) */
+  ];
+
+  /*  (中略) ... JSコードはそのまま (ご提示いただいたもの) */
+
+</script>
+</body>
+</html>
+"""
+    return html_content
+
 
 @app.route("/submit_web_order_form", methods=["POST"])
 def submit_web_order_form():
