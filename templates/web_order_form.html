@@ -171,6 +171,8 @@
     <!-- ▼ 1ヵ所目のプリント設定（必須）▼ -->
     <fieldset id="printLocation1">
       <legend>1ヵ所目のプリント設定 (必須)</legend>
+
+      <!-- プリント位置No -->
       <div class="sub-group">
         <label for="printPositionNo1">プリント位置No.</label>
         <select id="printPositionNo1" name="printPositionNo1" required>
@@ -233,52 +235,56 @@
             <input type="text" id="fontNumber1" name="fontNumber1" maxlength="2" style="width:3em;" placeholder="00">
           </div>
         </div>
-      </div>
+      </div><!-- /nameNumberPrintColorBox1 -->
 
-      <!-- 通常のプリントカラー・オプション (1色目, 2色目, 3色目, フルカラー) -->
-      <div class="sub-group">
-        <label>プリントカラー・オプション</label>
-        <select name="printColorOption1_1" id="printColorOption1_1" onchange="handlePrintColorChange(1)">
-          <option value="">1色目を選択</option>
-        </select>
-        <select name="printColorOption1_2" id="printColorOption1_2" onchange="handlePrintColorChange(1)">
-          <option value="">2色目を選択</option>
-        </select>
-        <select name="printColorOption1_3" id="printColorOption1_3" onchange="handlePrintColorChange(1)">
-          <option value="">3色目を選択</option>
-        </select>
-        <!-- フルカラー -->
-        <select name="fullColorSize1">
-          <option value="">フルカラーを選択</option>
-          <option value="S">フルカラー(小)</option>
-          <option value="M">フルカラー(中)</option>
-          <option value="L">フルカラー(大)</option>
-        </select>
-      </div>
+      <!-- ▼▼▼ ここから通常プリントカラー・デザイン等をまとめる ▼▼▼ -->
+      <div id="normalPrintGroup1">
+        <!-- 通常のプリントカラー・オプション (1色目, 2色目, 3色目, フルカラー) -->
+        <div class="sub-group">
+          <label>プリントカラー・オプション</label>
+          <select name="printColorOption1_1" id="printColorOption1_1" onchange="handlePrintColorChange(1)">
+            <option value="">1色目を選択</option>
+          </select>
+          <select name="printColorOption1_2" id="printColorOption1_2" onchange="handlePrintColorChange(1)">
+            <option value="">2色目を選択</option>
+          </select>
+          <select name="printColorOption1_3" id="printColorOption1_3" onchange="handlePrintColorChange(1)">
+            <option value="">3色目を選択</option>
+          </select>
+          <!-- フルカラー -->
+          <select name="fullColorSize1">
+            <option value="">フルカラーを選択</option>
+            <option value="S">フルカラー(小)</option>
+            <option value="M">フルカラー(中)</option>
+            <option value="L">フルカラー(大)</option>
+          </select>
+        </div>
 
-      <!-- デザイン番号 -->
-      <div class="sub-group">
-        <label for="designCode1">デザイン (例: D-001)</label>
-        <div style="display:flex; gap:0.3em;">
-          <span>D-</span>
-          <input type="text" id="designCode1" name="designCode1" maxlength="3" style="width:4em;" placeholder="3桁">
+        <!-- デザイン番号 -->
+        <div class="sub-group">
+          <label for="designCode1">デザイン (例: D-001)</label>
+          <div style="display:flex; gap:0.3em;">
+            <span>D-</span>
+            <input type="text" id="designCode1" name="designCode1" maxlength="3" style="width:4em;" placeholder="3桁">
+          </div>
+        </div>
+
+        <!-- デザインサイズ -->
+        <div class="sub-group">
+          <label>デザインサイズ</label>
+          <select name="designSize1" id="designSize1" onchange="toggleCustomSize(1)">
+            <option value="max">プリント位置最大</option>
+            <option value="custom">任意のサイズ</option>
+          </select>
+          <div id="customSizeInput1" class="hidden">
+            <label>X(cm)</label>
+            <input type="number" name="designSizeX1" min="0" step="0.1" style="width:5em;">
+            <label>Y(cm)</label>
+            <input type="number" name="designSizeY1" min="0" step="0.1" style="width:5em;">
+          </div>
         </div>
       </div>
-
-      <!-- デザインサイズ -->
-      <div class="sub-group">
-        <label>デザインサイズ</label>
-        <select name="designSize1" id="designSize1" onchange="toggleCustomSize(1)">
-          <option value="max">プリント位置最大</option>
-          <option value="custom">任意のサイズ</option>
-        </select>
-        <div id="customSizeInput1" class="hidden">
-          <label>X(cm)</label>
-          <input type="number" name="designSizeX1" min="0" step="0.1" style="width:5em;">
-          <label>Y(cm)</label>
-          <input type="number" name="designSizeY1" min="0" step="0.1" style="width:5em;">
-        </div>
-      </div>
+      <!-- ▲▲▲ normalPrintGroup1 終了 ▲▲▲ -->
     </fieldset>
 
     <!-- ▼ 追加プリント箇所を動的に生成する領域 & 追加ボタン ▼ -->
@@ -621,9 +627,7 @@
     { productNo: "219-MLC", productName: "クルーネックライトトレーナー", colorNo: "178", colorName: "フラミンゴピンク" },
     { productNo: "219-MLC", productName: "クルーネックライトトレーナー", colorNo: "172", colorName: "ブライトレッド" },
     { productNo: "219-MLC", productName: "クルーネックライトトレーナー", colorNo: "112", colorName: "バーガンディ" },
-    // 220-MLC
     { productNo: "220-MLC", productName: "クルーネックライトトレーナー", colorNo: "029", colorName: "ケリーグリーン" },
-    // 221-MLC
     { productNo: "221-MLC", productName: "クルーネックライトトレーナー", colorNo: "037", colorName: "アーミーグリーン" },
 
     // 217-MLZ ジップアップライトパーカー
@@ -717,7 +721,6 @@
   const productNoSelect   = document.getElementById("productNoSelect");
   const colorNameSelect   = document.getElementById("colorNameSelect");
   const colorNoSelect     = document.getElementById("colorNoSelect");
-
 
   /**********************************************
    * 商品名 → 品番 → 商品カラー → カラーNo
@@ -815,9 +818,6 @@
 
   /**********************************************
    * 「ネーム＆背番号系」選択時の表示切り替え
-   * プリントカラー(1色目/2色目/3色目)のどれかで
-   *  ネーム&背番号セット/ネーム(大)/(小)/番号(大)/(小)
-   * を選んだら nameNumberPrintColorBox を表示
    **********************************************/
   function handlePrintColorChange(idx){
     // 1色目・2色目・3色目の選択値を取得
@@ -826,14 +826,20 @@
     const color3 = document.getElementById(`printColorOption${idx}_3`).value;
     // 対象名
     const nameNumGroup = ["ネーム＆背番号セット","ネーム(大)","ネーム(小)","番号(大)","番号(小)"];
-    // いずれかに含まれていれば表示
+    // いずれかに含まれていればネーム系
     const isNameNumber = nameNumGroup.includes(color1) || nameNumGroup.includes(color2) || nameNumGroup.includes(color3);
 
     const box = document.getElementById(`nameNumberPrintColorBox${idx}`);
+    const normalGroup = document.getElementById(`normalPrintGroup${idx}`);
+
     if(isNameNumber){
+      // ネーム系が選択されたら → ネーム＆番号を表示、通常プリントは隠す
       box.classList.remove("hidden");
+      if(normalGroup) normalGroup.classList.add("hidden");
     } else {
+      // ネーム系が解除されたら → ネーム＆番号を隠し、通常プリントを表示
       box.classList.add("hidden");
+      if(normalGroup) normalGroup.classList.remove("hidden");
     }
   }
 
@@ -953,7 +959,8 @@
     printLocationCount++;
     const idx = printLocationCount; // 2,3,4
 
-    // テンプレート
+    // テンプレート: 通常のプリントカラー・デザインなどを
+    // <div id="normalPrintGroup${idx}"> ... </div> でまとめる。
     const html = `
       <fieldset id="printLocation${idx}">
         <legend>${idx}ヵ所目のプリント設定</legend>
@@ -991,7 +998,7 @@
               <option value="FT-3">FT-3 (文字色レッド、フチ色1ブラック)</option>
               <option value="FT-4">FT-4 (文字色パープル、フチ色1イエロー)</option>
               <option value="FT-5">FT-5 (文字色ブラック、フチ色1ホワイト、フチ色2ブラック)</option>
-              <option value="FT-6">FT-6 (文字色レッド、フチ色1ホワイト、フチ色2ブラック)</option>
+              <option value="FT-6">FT-6 (文字色レッド、フチ色1ホワイト, フチ色2ブラック)</option>
               <option value="FT-7">FT-7 (文字色ブルー、フチ色1ホワイト、フチ色2ブルー)</option>
               <option value="FT-8">FT-8 (文字色ブルー、フチ色1ホワイト、フチ色2レッド)</option>
               <option value="custom">カスタム</option>
@@ -1018,42 +1025,45 @@
           </div>
         </div>
 
-        <div class="sub-group">
-          <label>プリントカラー・オプション</label>
-          <select name="printColorOption${idx}_1" id="printColorOption${idx}_1" onchange="handlePrintColorChange(${idx})">
-            <option value="">1色目を選択</option>
-          </select>
-          <select name="printColorOption${idx}_2" id="printColorOption${idx}_2" onchange="handlePrintColorChange(${idx})">
-            <option value="">2色目を選択</option>
-          </select>
-          <select name="printColorOption${idx}_3" id="printColorOption${idx}_3" onchange="handlePrintColorChange(${idx})">
-            <option value="">3色目を選択</option>
-          </select>
-          <select name="fullColorSize${idx}">
-            <option value="">フルカラーを選択</option>
-            <option value="S">フルカラー(小)</option>
-            <option value="M">フルカラー(中)</option>
-            <option value="L">フルカラー(大)</option>
-          </select>
-        </div>
-        <div class="sub-group">
-          <label for="designCode${idx}">デザイン (例: D-001)</label>
-          <div style="display:flex; gap:0.3em;">
-            <span>D-</span>
-            <input type="text" id="designCode${idx}" name="designCode${idx}" maxlength="3" style="width:4em;" placeholder="3桁">
+        <!-- ▼▼▼ ここで normalPrintGroup${idx} を追加 ▼▼▼ -->
+        <div id="normalPrintGroup${idx}">
+          <div class="sub-group">
+            <label>プリントカラー・オプション</label>
+            <select name="printColorOption${idx}_1" id="printColorOption${idx}_1" onchange="handlePrintColorChange(${idx})">
+              <option value="">1色目を選択</option>
+            </select>
+            <select name="printColorOption${idx}_2" id="printColorOption${idx}_2" onchange="handlePrintColorChange(${idx})">
+              <option value="">2色目を選択</option>
+            </select>
+            <select name="printColorOption${idx}_3" id="printColorOption${idx}_3" onchange="handlePrintColorChange(${idx})">
+              <option value="">3色目を選択</option>
+            </select>
+            <select name="fullColorSize${idx}">
+              <option value="">フルカラーを選択</option>
+              <option value="S">フルカラー(小)</option>
+              <option value="M">フルカラー(中)</option>
+              <option value="L">フルカラー(大)</option>
+            </select>
           </div>
-        </div>
-        <div class="sub-group">
-          <label>デザインサイズ</label>
-          <select name="designSize${idx}" id="designSize${idx}" onchange="toggleCustomSize(${idx})">
-            <option value="max">プリント位置最大</option>
-            <option value="custom">任意のサイズ</option>
-          </select>
-          <div id="customSizeInput${idx}" class="hidden">
-            <label>X(cm)</label>
-            <input type="number" name="designSizeX${idx}" min="0" step="0.1" style="width:5em;">
-            <label>Y(cm)</label>
-            <input type="number" name="designSizeY${idx}" min="0" step="0.1" style="width:5em;">
+          <div class="sub-group">
+            <label for="designCode${idx}">デザイン (例: D-001)</label>
+            <div style="display:flex; gap:0.3em;">
+              <span>D-</span>
+              <input type="text" id="designCode${idx}" name="designCode${idx}" maxlength="3" style="width:4em;" placeholder="3桁">
+            </div>
+          </div>
+          <div class="sub-group">
+            <label>デザインサイズ</label>
+            <select name="designSize${idx}" id="designSize${idx}" onchange="toggleCustomSize(${idx})">
+              <option value="max">プリント位置最大</option>
+              <option value="custom">任意のサイズ</option>
+            </select>
+            <div id="customSizeInput${idx}" class="hidden">
+              <label>X(cm)</label>
+              <input type="number" name="designSizeX${idx}" min="0" step="0.1" style="width:5em;">
+              <label>Y(cm)</label>
+              <input type="number" name="designSizeY${idx}" min="0" step="0.1" style="width:5em;">
+            </div>
           </div>
         </div>
       </fieldset>
