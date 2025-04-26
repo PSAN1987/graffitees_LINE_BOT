@@ -32,7 +32,8 @@
     .form-group select,
     .form-group input[type="text"],
     .form-group input[type="number"],
-    .form-group input[type="date"] {
+    .form-group input[type="date"],
+    .form-group input[type="email"] {
       width: 100%;
       padding: 0.5em;
       box-sizing: border-box;
@@ -164,7 +165,7 @@
     <!-- ▼ プリント位置のイメージ画像 ▼ -->
     <div class="form-group">
       <label>プリント位置イメージ</label>
-      <img src="https://catalog-bot-zf1t.onrender.com/PRINT_LOCATION.png" alt="プリント位置イメージ" style="max-width:80%;">
+      <img src="https://catalog-bot-zf1t.onrender.com/PRINT_LOCATION.png" alt="プリント位置イメージ" style="max-width:90%;">
     </div>
 
     <!-- ▼ 1ヵ所目のプリント設定（必須）▼ -->
@@ -284,7 +285,19 @@
     <div id="additionalPrintLocations"></div>
 
     <div style="margin-bottom:2em;">
-      <button type="button" onclick="addPrintLocation()">+ プリント箇所を追加</button>
+      <button type="button"
+              onclick="addPrintLocation()"
+              style="
+                background-color: #d15b8f;
+                color: #fff;
+                border: none;
+                padding: 1em 2em;
+                border-radius: 4px;
+                font-size: 1em;
+                cursor: pointer;
+              ">
+        + プリント箇所を追加
+      </button>
     </div>
 
     <!-- ▼ 希望お届け日・使用日・申込日 ▼ -->
