@@ -143,6 +143,70 @@ def get_or_create_worksheet(sheet, title):
             # 新たに Webフォーム注文のヘッダーをセット（必要に応じて列を追加/変更）
     return ws
 
+# ヘッダーと同じ順序でキーを定義 （フォーム上の name と合わせる）
+WEB_ORDER_COLUMN_KEYS = [
+    # 基本情報
+    "timestamp",
+    "productName", "productNo", "colorNo", "colorName",
+    "size150", "sizeSS", "sizeS", "sizeM",
+    "sizeL", "sizeXL", "sizeXXL", "totalQuantity",
+
+    # ── １ヵ所目 ─────────────────────────────────────────
+    "printPositionNo1", "nameNumberOption1", "nameNumberPrintType1",
+    "singleColor1", "edgeType1",
+    "edgeCustomTextColor1", "edgeCustomEdgeColor1", "edgeCustomEdgeColor2_1",
+    "fontType1", "fontNumber1",
+    "printColorOption1_1", "printColorOption1_2", "printColorOption1_3",
+    "fullColorSize1",
+    "designCode1", "designSize1", "designSizeX1", "designSizeY1",
+
+    # ── ２ヵ所目 ─────────────────────────────────────────
+    "printPositionNo2", "nameNumberOption2", "nameNumberPrintType2",
+    "singleColor2", "edgeType2",
+    "edgeCustomTextColor2", "edgeCustomEdgeColor2", "edgeCustomEdgeColor2_2",
+    "fontType2", "fontNumber2",
+    "printColorOption2_1", "printColorOption2_2", "printColorOption2_3",
+    "fullColorSize2",
+    "designCode2", "designSize2", "designSizeX2", "designSizeY2",
+
+    # ── ３ヵ所目 ─────────────────────────────────────────
+    "printPositionNo3", "nameNumberOption3", "nameNumberPrintType3",
+    "singleColor3", "edgeType3",
+    "edgeCustomTextColor3", "edgeCustomEdgeColor3", "edgeCustomEdgeColor2_3",
+    "fontType3", "fontNumber3",
+    "printColorOption3_1", "printColorOption3_2", "printColorOption3_3",
+    "fullColorSize3",
+    "designCode3", "designSize3", "designSizeX3", "designSizeY3",
+
+    # ── ４ヵ所目 ─────────────────────────────────────────
+    "printPositionNo4", "nameNumberOption4", "nameNumberPrintType4",
+    "singleColor4", "edgeType4",
+    "edgeCustomTextColor4", "edgeCustomEdgeColor4", "edgeCustomEdgeColor2_4",
+    "fontType4", "fontNumber4",
+    "printColorOption4_1", "printColorOption4_2", "printColorOption4_3",
+    "fullColorSize4",
+    "designCode4", "designSize4", "designSizeX4", "designSizeY4",
+
+    # 発送・連絡先など
+    "deliveryDate", "useDate", "applicationDate", "discountOption",
+    "schoolName", "lineName", "classGroupName",
+    "zipCode", "address1", "address2", "schoolTel",
+    "representativeName", "representativeTel", "representativeEmail",
+    "designCheckMethod", "paymentMethod",
+
+    "orderNo", "unitPrice", "totalPrice"
+]
+
+def build_web_order_row_values(data: dict) -> list:
+    """
+    WebOrderRequests のヘッダー順に沿って、必ず同じ数・同じ順序で配列を返す。
+    data にキーが無い場合は空文字 "" を返す。
+    """
+    row = []
+    for key in WEB_ORDER_COLUMN_KEYS:
+        row.append(data.get(key, ""))  # 空文字でも埋める
+    return row
+
 
 def write_to_spreadsheet_for_catalog(form_data: dict):
     gc = get_gspread_client()
@@ -1354,166 +1418,55 @@ def show_web_order_form():
     token = str(uuid.uuid4())
     session["web_order_form_token"] = token
     liff_id = os.getenv("WEB_ORDER_LIFF_ID")
-    # uid はブラウザ側で取得するので渡さない
     return render_template(
         "web_order_form.html",
         token=token,
-        liff_id=liff_id        # ← テンプレートに渡す
+        liff_id=liff_id
     )
 
 @app.route("/submit_web_order_form", methods=["POST"])
 def submit_web_order_form():
+    # フォームデータ辞書を作成 (未入力は空文字 "")
     form_data = {k: request.form.get(k, "").strip() for k in request.form}
 
-    # ❶ ここを書き換え
-    est = calculate_web_order_estimate(form_data)         # ← dict が返る
+    # 見積計算
+    est = calculate_web_order_estimate(form_data)
     unit_price  = est["unit_price"]
     total_price = est["total_price"]
 
-    # ❷ 注文番号生成などはそのまま
+    # 注文番号などを辞書に追加
     jst = pytz.timezone('Asia/Tokyo')
     order_no = datetime.now(jst).strftime("%Y%m%d%H%M%S")
 
-    # ❸ スプレッドシート保存
-    write_to_spreadsheet_for_web_order(form_data, order_no,
-                                       unit_price, total_price)
+    # タイムスタンプも同様に追加
+    now_jst_str = datetime.now(jst).strftime("%Y/%m/%d %H:%M:%S")
+    form_data["timestamp"]  = now_jst_str
+    form_data["orderNo"]    = order_no
+    form_data["unitPrice"]  = unit_price
+    form_data["totalPrice"] = total_price
 
-    # ❹ ユーザーへプッシュ
+    # スプレッドシート保存
+    write_to_spreadsheet_for_web_order(form_data)
+
+    # ユーザーへプッシュ
     uid = form_data.get("lineUserId")
     if uid:
-        summary_msg = make_order_summary(order_no, form_data, est)  # ← est を渡す
+        summary_msg = make_order_summary(order_no, form_data, est)
         line_bot_api.push_message(uid, TextSendMessage(text=summary_msg))
 
     return "フォーム送信ありがとうございました！", 200
 
-
-def write_to_spreadsheet_for_web_order(data: dict, order_no: str, unit_price: int, total_price: int):
-    """
-    Webフォーム注文データを新しいシート "WebOrderRequests" に書き込む
-    """
+def write_to_spreadsheet_for_web_order(data: dict):
     gc = get_gspread_client()
     sh = gc.open_by_key(SPREADSHEET_KEY)
     worksheet = get_or_create_worksheet(sh, "WebOrderRequests")
 
-    # 日本時間の現在時刻
-    jst = pytz.timezone('Asia/Tokyo')
-    now_jst_str = datetime.now(jst).strftime("%Y/%m/%d %H:%M:%S")
+    # row_values をヘッダー順に作成
+    row_values = build_web_order_row_values(data)
 
-    # 新しい行を作成：ヘッダと合わせて順序を定義
-    # （ヘッダは get_or_create_worksheet() 内でセット済）
-    row_values = [
-        now_jst_str,  # 日時
-        data.get("productName", ""),
-        data.get("productNo", ""),
-        data.get("colorNo", ""),
-        data.get("colorName", ""),
-        data.get("size150", ""),
-        data.get("sizeSS", ""),
-        data.get("sizeS", ""),
-        data.get("sizeM", ""),
-        data.get("sizeL", ""),
-        data.get("sizeXL", ""),
-        data.get("sizeXXL", ""),
-        data.get("totalQuantity", ""),
-
-        data.get("printPositionNo1", ""),
-        data.get("nameNumberOption1", ""),
-        data.get("nameNumberPrintType1", ""),
-        data.get("singleColor1", ""),
-        data.get("edgeType1", ""),
-        data.get("edgeCustomTextColor1", ""),
-        data.get("edgeCustomEdgeColor1", ""),
-        data.get("edgeCustomEdgeColor2_1", ""),
-        data.get("fontType1", ""),
-        data.get("fontNumber1", ""),
-        data.get("printColorOption1_1", ""),
-        data.get("printColorOption1_2", ""),
-        data.get("printColorOption1_3", ""),
-        data.get("fullColorSize1", ""),
-        data.get("designCode1", ""),
-        data.get("designSize1", ""),
-        data.get("designSizeX1", ""),
-        data.get("designSizeY1", ""),
-
-        data.get("printPositionNo2", ""),
-        data.get("nameNumberOption2", ""),
-        data.get("nameNumberPrintType2", ""),
-        data.get("singleColor2", ""),
-        data.get("edgeType2", ""),
-        data.get("edgeCustomTextColor2", ""),
-        data.get("edgeCustomEdgeColor2", ""),
-        data.get("edgeCustomEdgeColor2_2", ""),
-        data.get("fontType2", ""),
-        data.get("fontNumber2", ""),
-        data.get("printColorOption2_1", ""),
-        data.get("printColorOption2_2", ""),
-        data.get("printColorOption2_3", ""),
-        data.get("fullColorSize2", ""),
-        data.get("designCode2", ""),
-        data.get("designSize2", ""),
-        data.get("designSizeX2", ""),
-        data.get("designSizeY2", ""),
-
-        data.get("printPositionNo3", ""),
-        data.get("nameNumberOption3", ""),
-        data.get("nameNumberPrintType3", ""),
-        data.get("singleColor3", ""),
-        data.get("edgeType3", ""),
-        data.get("edgeCustomTextColor3", ""),
-        data.get("edgeCustomEdgeColor3", ""),
-        data.get("edgeCustomEdgeColor2_3", ""),
-        data.get("fontType3", ""),
-        data.get("fontNumber3", ""),
-        data.get("printColorOption3_1", ""),
-        data.get("printColorOption3_2", ""),
-        data.get("printColorOption3_3", ""),
-        data.get("fullColorSize3", ""),
-        data.get("designCode3", ""),
-        data.get("designSize3", ""),
-        data.get("designSizeX3", ""),
-        data.get("designSizeY3", ""),
-
-        data.get("printPositionNo4", ""),
-        data.get("nameNumberOption4", ""),
-        data.get("nameNumberPrintType4", ""),
-        data.get("singleColor4", ""),
-        data.get("edgeType4", ""),
-        data.get("edgeCustomTextColor4", ""),
-        data.get("edgeCustomEdgeColor4", ""),
-        data.get("edgeCustomEdgeColor2_4", ""),
-        data.get("fontType4", ""),
-        data.get("fontNumber4", ""),
-        data.get("printColorOption4_1", ""),
-        data.get("printColorOption4_2", ""),
-        data.get("printColorOption4_3", ""),
-        data.get("fullColorSize4", ""),
-        data.get("designCode4", ""),
-        data.get("designSize4", ""),
-        data.get("designSizeX4", ""),
-        data.get("designSizeY4", ""),
-
-        data.get("deliveryDate", ""),
-        data.get("useDate", ""),
-        data.get("applicationDate", ""),
-        data.get("discountOption", ""),
-        data.get("schoolName", ""),
-        data.get("lineName", ""),
-        data.get("classGroupName", ""),
-        data.get("zipCode", ""),
-        data.get("address1", ""),
-        data.get("address2", ""),
-        data.get("schoolTel", ""),
-        data.get("representativeName", ""),
-        data.get("representativeTel", ""),
-        data.get("representativeEmail", ""),
-        data.get("designCheckMethod", ""),
-        data.get("paymentMethod", "")
-    ]
-    if len(row_values) + 3 > worksheet.col_count:
-        worksheet.add_cols(len(row_values) + 3 - worksheet.col_count)
-    #    
-    row_values.extend([order_no, unit_price, total_price])
+    # 書き込む
     worksheet.append_row(row_values, value_input_option="USER_ENTERED")
+
     
 def calculate_web_order_estimate(data: dict) -> dict:
     """Web オーダーフォーム１件ぶんの単価・合計金額を返す"""
