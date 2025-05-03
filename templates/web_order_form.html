@@ -1135,8 +1135,6 @@ const nameNumGroup = [
     div.innerHTML = html;
     container.appendChild(div);
 
-    // 追加直後に、プリントカラーのセレクトボックスへオプションをセット
-    populatePrintColorSelects(`printColorOption${idx}_`);
     // ネーム＆番号プリントの単色/フチ付き用カラー選択肢をセット
     fillNameNumberColors(`singleColor${idx}`, nameNumberSingleColors);
     fillNameNumberColors(`edgeCustomTextColor${idx}`, nameNumberEdgeColors);
@@ -1148,8 +1146,6 @@ const nameNumGroup = [
     fontRadios.forEach(r=>{
       r.addEventListener("change",()=>handleFontRadio(idx));
     });
-  // 1 ヶ所目
-  initFirstColor(1);
   // 追加箇所
   initFirstColor(idx);
   }
@@ -1253,9 +1249,6 @@ function initFirstColor(idx){
     setProductNameOptions();
     // 1 ヶ所目
     initFirstColor(1);
-
-    // 1ヵ所目のプリントカラーセレクト
-    populatePrintColorSelects("printColorOption1_");
     // ネーム＆番号プリントの単色/フチ付き用カラー選択肢(1ヵ所目)
     fillNameNumberColors("singleColor1", nameNumberSingleColors);
     fillNameNumberColors("edgeCustomTextColor1", nameNumberEdgeColors);
