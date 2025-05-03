@@ -41,7 +41,7 @@
       border-radius: 4px;
     }
     .size-inputs {
-      display: flex;
+      display: block;
       flex-wrap: wrap;
       gap: 1em;
     }
@@ -80,6 +80,30 @@
     }
     .mt1 { margin-top: 1em; }
     .mb1 { margin-bottom: 1em; }
+  /* 既存 <style> 内の末尾などに追記 */
+    .back-btn{
+    background:#777;
+    color:#fff;
+    border:none;
+    padding:.4em .9em;
+    border-radius:4px;
+    font-size:.9em;
+    cursor:pointer;
+    margin-top:.5em;
+  }
+  .back-btn:hover{ opacity:.8; }
+  /* 既存 <style> の末尾などに追加 ------------------------------ */
+    .del-btn{
+    background:#e74c3c;   /* 赤 */
+    color:#fff;
+    border:none;
+    padding:.4em .9em;
+    border-radius:4px;
+    font-size:.9em;
+    cursor:pointer;
+    margin-left:.5em;
+  }
+  .del-btn:hover{ opacity:.85; }
   </style>
 </head>
 <body>
@@ -190,6 +214,12 @@
       <!-- ネーム＆番号プリントカラーオプション (プリントカラーでネーム系選択時に表示) -->
       <div id="nameNumberPrintColorBox1" class="sub-group hidden" style="border:1px solid #ccc; padding:0.5em;">
         <strong>ネーム・番号プリントカラーオプション</strong>
+        <!-- ← 戻るボタンをここに -->
+        <button type="button"
+                class="back-btn"
+                onclick="backToNormalPrint(1)">
+        ← 通常のプリント設定に戻る
+        </button>        
         <div class="inline-flex mt1 mb1">
           <label><input type="radio" name="nameNumberPrintType1" value="single" checked onclick="toggleEdgeColor(1)"> 単色</label>
           <label><input type="radio" name="nameNumberPrintType1" value="edge" onclick="toggleEdgeColor(1)"> フチ付き</label>
@@ -968,7 +998,15 @@
     // <div id="normalPrintGroup${idx}"> ... </div> でまとめる。
     const html = `
       <fieldset id="printLocation${idx}">
-        <legend>${idx}ヵ所目のプリント設定</legend>
+        <legend style="display:flex;justify-content:space-between;align-items:center;">
+        <span>${idx}ヵ所目のプリント設定</span>
+        <!-- 削除ボタン -->
+<button type="button"
+           class="del-btn"
+            onclick="removePrintLocation(${idx})">
+      ✕ 削除
+    </button>
+  </legend>
         <div class="sub-group">
           <label for="printPositionNo${idx}">プリント位置No.</label>
           <select id="printPositionNo${idx}" name="printPositionNo${idx}">
@@ -986,6 +1024,11 @@
         <!-- ネーム＆番号プリントカラーオプション -->
         <div id="nameNumberPrintColorBox${idx}" class="sub-group hidden" style="border:1px solid #ccc; padding:0.5em;">
           <strong>ネーム・番号プリントカラーオプション</strong>
+          <button type="button"
+           class="back-btn"
+           onclick="backToNormalPrint(${idx})">
+           ← 通常のプリント設定に戻る
+          </button>
           <div class="inline-flex mt1 mb1">
             <label><input type="radio" name="nameNumberPrintType${idx}" value="single" checked onclick="toggleEdgeColor(${idx})"> 単色</label>
             <label><input type="radio" name="nameNumberPrintType${idx}" value="edge" onclick="toggleEdgeColor(${idx})"> フチ付き</label>
@@ -1093,6 +1136,18 @@
     });
   }
 
+    /* 既存 <script> 内のどこか（addPrintLocation などの下）に追加 */
+      function removePrintLocation(idx){
+    if(!confirm("このプリント箇所を削除しますか？")) return;
+
+    const fs = document.getElementById(`printLocation${idx}`);
+    if(fs){
+      fs.parentNode.removeChild(fs);
+      // 現在のプリント箇所数を再カウントして変数を更新
+      printLocationCount = document.querySelectorAll('fieldset[id^="printLocation"]').length;
+    }
+  }
+  
   function fillNameNumberColors(selectId, colorArray){
     const el = document.getElementById(selectId);
     if(!el) return;
@@ -1163,6 +1218,24 @@
       document.getElementById('lineUserId').value = uid;
     }
   })();
+    /* 既存 JS の下に追記 ------------------------------------- */
+    function backToNormalPrint(idx){
+    // ❶ ボックスの表示を切替え
+    document.getElementById(`nameNumberPrintColorBox${idx}`).classList.add("hidden");
+    document.getElementById(`normalPrintGroup${idx}`).classList.remove("hidden");
+
+    // ❷ ネーム・番号系が入っている色選択をクリア
+    const nameNumGroup = ["ネーム＆背番号セット","ネーム(大)","ネーム(小)","番号(大)","番号(小)"];
+    ["1","2","3"].forEach(n=>{
+      const sel = document.getElementById(`printColorOption${idx}_${n}`);
+      if(sel && nameNumGroup.includes(sel.value)){
+        sel.value = "";
+      }
+    });
+
+    // ❸ UI の整合をとる（※色変更ハンドラを呼び出し）
+    handlePrintColorChange(idx);
+  }
 </script>
 </body>
 </html>
