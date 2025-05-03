@@ -129,10 +129,10 @@ def get_or_create_worksheet(sheet, title):
     # 発送・連絡先など --------------------------------------------------
     "希望お届け日", "使用日", "申込日", "利用学割特典",
     "学校名", "LINE名", "クラス・団体名",
-    "郵便番号", "住所1", "住所2", "学校TEL",
+    "郵便番号", "住所1", "住所2", "お届け先宛名", "学校TEL",
     "代表者", "代表者TEL", "代表者メール",
     "デザイン確認方法", "お支払い方法",
-    "注文番号", "単価", "合計金額"      # ★追加
+    "注文番号", "単価", "合計金額"
 ]
             # ❶ 必要な列数を確保（あとで行追加時に不足すると困るため）
             ws.resize(rows=2000, cols=len(headers))
@@ -190,7 +190,7 @@ WEB_ORDER_COLUMN_KEYS = [
     # 発送・連絡先など
     "deliveryDate", "useDate", "applicationDate", "discountOption",
     "schoolName", "lineName", "classGroupName",
-    "zipCode", "address1", "address2", "schoolTel",
+    "zipCode", "address1", "address2","addresseeName","schoolTel",
     "representativeName", "representativeTel", "representativeEmail",
     "designCheckMethod", "paymentMethod",
 
