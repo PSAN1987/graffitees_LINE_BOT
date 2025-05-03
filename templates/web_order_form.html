@@ -357,6 +357,15 @@
     <div class="form-group">
       <label for="address2">住所2 (番地以下) <span style="color:red;">(必須)</span></label>
       <input type="text" id="address2" name="address2" required />
+    <!-- ▼▼▼ お届け先宛名(必須)を追加 ▼▼▼ -->
+    <div class="form-group">
+      <label for="addresseeName">
+        お届け先宛名 <span style="color:red;">(必須)</span><br>
+        <small>※学校お届けの場合はご担任名を入力ください</small>
+      </label>
+      <input type="text" id="addresseeName" name="addresseeName" required />
+    </div>
+    <!-- ▲▲▲ ここまで追加 ▲▲▲ -->
     </div>
     <div class="form-group">
       <label for="schoolTel">学校TEL <span style="color:red;">(必須)</span></label>
@@ -583,13 +592,11 @@
     { productNo: "302-ADP", productName: "ドライポロシャツ", colorNo: "024", colorName: "ライトグリーン" },
     { productNo: "302-ADP", productName: "ドライポロシャツ", colorNo: "155", colorName: "ライム" },
     { productNo: "302-ADP", productName: "ドライポロシャツ", colorNo: "025", colorName: "グリーン" },
-
-    // 303-ADP,304-ADP,... (型番違いのデータ例)
-    { productNo: "303-ADP", productName: "ドライポロシャツ", colorNo: "037", colorName: "アーミーグリーン" },
-    { productNo: "304-ADP", productName: "ドライポロシャツ", colorNo: "026", colorName: "ミントグリーン" },
-    { productNo: "305-ADP", productName: "ドライポロシャツ", colorNo: "096", colorName: "ミントブルー" },
-    { productNo: "306-ADP", productName: "ドライポロシャツ", colorNo: "188", colorName: "ライトパープル" },
-    { productNo: "307-ADP", productName: "ドライポロシャツ", colorNo: "014", colorName: "パープル" },
+    { productNo: "302-ADP", productName: "ドライポロシャツ", colorNo: "037", colorName: "アーミーグリーン" },
+    { productNo: "302-ADP", productName: "ドライポロシャツ", colorNo: "026", colorName: "ミントグリーン" },
+    { productNo: "302-ADP", productName: "ドライポロシャツ", colorNo: "096", colorName: "ミントブルー" },
+    { productNo: "302-ADP", productName: "ドライポロシャツ", colorNo: "188", colorName: "ライトパープル" },
+    { productNo: "302-ADP", productName: "ドライポロシャツ", colorNo: "014", colorName: "パープル" },
 
     // 304-ALT ドライロングスリーブTシャツ
     { productNo: "304-ALT", productName: "ドライロングスリーブTシャツ", colorNo: "001", colorName: "ホワイト" },
@@ -627,8 +634,8 @@
     { productNo: "219-MLC", productName: "クルーネックライトトレーナー", colorNo: "178", colorName: "フラミンゴピンク" },
     { productNo: "219-MLC", productName: "クルーネックライトトレーナー", colorNo: "172", colorName: "ブライトレッド" },
     { productNo: "219-MLC", productName: "クルーネックライトトレーナー", colorNo: "112", colorName: "バーガンディ" },
-    { productNo: "220-MLC", productName: "クルーネックライトトレーナー", colorNo: "029", colorName: "ケリーグリーン" },
-    { productNo: "221-MLC", productName: "クルーネックライトトレーナー", colorNo: "037", colorName: "アーミーグリーン" },
+    { productNo: "219-MLC", productName: "クルーネックライトトレーナー", colorNo: "029", colorName: "ケリーグリーン" },
+    { productNo: "219-MLC", productName: "クルーネックライトトレーナー", colorNo: "037", colorName: "アーミーグリーン" },
 
     // 217-MLZ ジップアップライトパーカー
     { productNo: "217-MLZ", productName: "ジップアップライトパーカー", colorNo: "001", colorName: "ホワイト" },
