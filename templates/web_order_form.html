@@ -117,11 +117,26 @@
   .add-color-btn:disabled{opacity:.4;cursor:default;}
   .color-box select{margin-bottom:.4em;width:100%;}
   .full-color-select{display:block;width:100%;margin-top:.4em;}
+  .catalog-btn{
+  display:inline-block;
+  padding:.55em 1.6em;
+  background:#4a8fd8;
+  color:#fff;
+  font-size:.9em;
+  border-radius:4px;
+  text-decoration:none;
+  }
+  .catalog-btn:hover{opacity:.8;}
   </style>
 </head>
 <body>
 <div class="container">
   <h1>WEBフォーム注文</h1>
+  <p style="text-align:center; margin:-0.5em 0 1.2em;">
+    <a href="https://saas.actibookone.com/content/detail?param=eyJjb250ZW50TnVtIjo1Njk0OTd9&detailFlg=1&pNo=1"
+       target="_blank"
+       class="catalog-btn">カタログ参照</a>
+  </p>
   <!-- 送信先: /submit_web_order_form  /  POST で送る -->
   <form id="orderForm" action="/submit_web_order_form" method="post">
     <input type="hidden" name="lineUserId" id="lineUserId">
@@ -131,6 +146,11 @@
     <!-- ▼ 製品選択（商品名 → 品番 → 商品カラー → カラーNo）▼ -->
     <div class="form-group">
       <label for="productNameSelect">商品名 <span style="color:red;">(必須)</span></label>
+      <!-- ▼ 追加 ▼ -->
+      <a href="https://saas.actibookone.com/content/detail?param=eyJjb250ZW50TnVtIjo1Njk0OTd9&detailFlg=1&pNo=4"
+        target="_blank"
+        style="margin-left:.4em; font-size:.8em; color:#4a8fd8;">カタログ</a>
+      <!-- ▲ 追加 ▲ -->
       <select id="productNameSelect" name="productName" required>
         <option value="">選択してください</option>
       </select>
@@ -226,7 +246,13 @@
 
               <!-- デザイン番号 -->
               <div class="sub-group">
-                <label for="designCode1">デザイン (例: D-001)</label>
+                <label for="designCode1">デザイン (例: D-001)
+                  <!-- ▼ 追加 ▼ -->
+                  <a href="https://saas.actibookone.com/content/detail?param=eyJjb250ZW50TnVtIjo1Njk0OTd9&detailFlg=1&pNo=18"
+                    target="_blank"
+                    style="margin-left:.4em; font-size:.8em; color:#4a8fd8;">カタログ</a>
+                  <!-- ▲ 追加 ▲ -->
+                </label>
                 <div style="display:flex; gap:0.3em;">
                   <span>D-</span>
                   <input type="text" id="designCode1" name="designCode1" maxlength="3" style="width:4em;" placeholder="3桁">
@@ -292,7 +318,13 @@
       <div id="normalPrintGroup1">
         <!-- 通常のプリントカラー・オプション (1色目, 2色目, 3色目, フルカラー) -->
         <div class="sub-group">
-            <label>プリントカラー・オプション</label>
+            <label>プリントカラー・オプション
+            <!-- ▼ 追加 ▼ -->
+            <a href="https://saas.actibookone.com/content/detail?param=eyJjb250ZW50TnVtIjo1Njk0OTd9&detailFlg=1&pNo=20"
+              target="_blank"
+              style="margin-left:.4em; font-size:.8em; color:#4a8fd8;">カタログ</a>
+            <!-- ▲ 追加 ▲ -->
+            </label>
             <!-- 色セレクトをまとめて置くコンテナ -->
             <div id="printColorBox1" class="color-box"></div>
             <!-- 追加ボタン -->
@@ -1038,7 +1070,13 @@ const nameNumGroup = [
           </select>
         </div>
                   <div class="sub-group">
-            <label for="designCode${idx}">デザイン (例: D-001)</label>
+            <label for="designCode${idx}">デザイン (例: D-001)
+            <!-- ▼ 追加 ▼ -->
+            <a href="https://saas.actibookone.com/content/detail?param=eyJjb250ZW50TnVtIjo1Njk0OTd9&detailFlg=1&pNo=18"
+              target="_blank"
+              style="margin-left:.4em; font-size:.8em; color:#4a8fd8;">カタログ</a>
+            <!-- ▲ 追加 ▲ -->
+              </label>
             <div style="display:flex; gap:0.3em;">
               <span>D-</span>
               <input type="text" id="designCode${idx}" name="designCode${idx}" maxlength="3" style="width:4em;" placeholder="3桁">
@@ -1099,6 +1137,14 @@ const nameNumGroup = [
         <!-- ▼▼▼ ここで normalPrintGroup${idx} を追加 ▼▼▼ -->
         <div id="normalPrintGroup${idx}">
           <div class="sub-group">
+          <label>
+            プリントカラー・オプション
+            <!-- ▼ ここを追加 ▼ -->
+            <a href="https://saas.actibookone.com/content/detail?param=eyJjb250ZW50TnVtIjo1Njk0OTd9&detailFlg=1&pNo=12"
+              target="_blank"
+              style="margin-left:.4em; font-size:.8em; color:#4a8fd8;">カタログ</a>
+            <!-- ▲ 追加ここまで ▲ -->
+          </label>
             <!-- ★ 新しい color-box とボタン -->
             <div id="printColorBox${idx}" class="color-box"></div>
 
