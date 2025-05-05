@@ -245,7 +245,7 @@
       </div>
 
               <!-- デザイン番号 -->
-              <div class="sub-group">
+              <div class="sub-group" id="designGroup1">
                 <label for="designCode1">デザイン (例: D-001)
                   <!-- ▼ 追加 ▼ -->
                   <a href="https://saas.actibookone.com/content/detail?param=eyJjb250ZW50TnVtIjo1Njk0OTd9&detailFlg=1&pNo=18"
@@ -915,15 +915,18 @@ const nameNumGroup = [
     nameNumGroup.includes(sel.value));
     const box = document.getElementById(`nameNumberPrintColorBox${idx}`);
     const normalGroup = document.getElementById(`normalPrintGroup${idx}`);
+    const designGroup = document.getElementById(`designGroup${idx}`);   // ★追加
 
     if(isNameNumber){
       // ネーム系が選択されたら → ネーム＆番号を表示、通常プリントは隠す
       box.classList.remove("hidden");
       if(normalGroup) normalGroup.classList.add("hidden");
+      if(designGroup) designGroup.classList.add("hidden");            // ★追加
     } else {
       // ネーム系が解除されたら → ネーム＆番号を隠し、通常プリントを表示
       box.classList.add("hidden");
       if(normalGroup) normalGroup.classList.remove("hidden");
+      if(designGroup) designGroup.classList.remove("hidden");         // ★追加
     }
   }
 
@@ -1069,7 +1072,7 @@ const nameNumGroup = [
             <option value="7">7</option>
           </select>
         </div>
-                  <div class="sub-group">
+                  <div class="sub-group" id="designGroup${idx}">
             <label for="designCode${idx}">デザイン (例: D-001)
             <!-- ▼ 追加 ▼ -->
             <a href="https://saas.actibookone.com/content/detail?param=eyJjb250ZW50TnVtIjo1Njk0OTd9&detailFlg=1&pNo=18"
@@ -1326,6 +1329,8 @@ function initFirstColor(idx){
     // ❶ ボックスの表示を切替え
     document.getElementById(`nameNumberPrintColorBox${idx}`).classList.add("hidden");
     document.getElementById(`normalPrintGroup${idx}`).classList.remove("hidden");
+    const dg = document.getElementById(`designGroup${idx}`);            // ★追加
+    if(dg) dg.classList.remove("hidden");                               // ★追加
 
     // ❷ ネーム・番号系が入っている色選択をクリア
     const nameNumGroup = ["ネーム＆背番号セット","ネーム(大)","ネーム(小)","番号(大)","番号(小)"];
