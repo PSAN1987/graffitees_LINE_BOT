@@ -1346,6 +1346,8 @@ function initFirstColor(idx){
     setProductNoOptions();   // ← productName が選択済みなら品番候補を復元
     setColorNameOptions();   // ← productNo が選択済みならカラー名候補を復元
     setColorNoOptions();     // ← colorName が選択済みならカラーNo候補を復元
+    /* ★ ここを追加 ― size が残っていれば再集計、残っていなければ 0 のまま */
+    calculateTotal();
   });
 </script>
 </body>
